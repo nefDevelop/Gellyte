@@ -9,40 +9,40 @@ import (
 
 // GetPublicInfo godoc
 func GetPublicInfo(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"LocalAddress":           fmt.Sprintf("http://%s", c.Request.Host),
-		"ServerName":             "Gellyte",
-		"Version":                "10.11.8",
-		"ProductName":            "Jellyfin Server",
-		"OperatingSystem":        "Linux",
-		"Id":                     "83e4c49d-9273-4556-9a5d-4952011702f3",
-		"StartupWizardCompleted": true,
+	c.JSON(http.StatusOK, PublicSystemInfo{
+		LocalAddress:           fmt.Sprintf("http://%s", c.Request.Host),
+		ServerName:             "Gellyte",
+		Version:                "10.11.8",
+		ProductName:            "Jellyfin Server",
+		OperatingSystem:        "Linux",
+		Id:                     ServerUUID,
+		StartupWizardCompleted: true,
 	})
 }
 
 // GetSystemInfo godoc
 func GetSystemInfo(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"SystemUpdateLevel":          "Available",
-		"OperatingSystem":            "Linux",
-		"ServerName":                 "Gellyte",
-		"Version":                    "10.11.8",
-		"ServerVersion":              "10.11.8",
-		"Id":                         "83e4c49d-9273-4556-9a5d-4952011702f3",
-		"HasUpdateAvailable":         false,
-		"CanSelfRestart":             false,
-		"CanSelfUpdate":              false,
-		"WebSocketPortNumber":        8080,
-		"SupportsHttps":              false,
-		"SupportsLibraryUninstall":   false,
-		"HasPendingRestart":          false,
-		"IsShuttingDown":             false,
-		"SupportsPatcher":            false,
-		"CompletedInstallations":     []string{},
-		"CanLaunchWebBrowser":        false,
-		"HardwareAccelerationDrivers": []string{},
-		"HasToken":                   true,
-		"EncoderLocation":            "None",
+	c.JSON(http.StatusOK, SystemInfo{
+		SystemUpdateLevel:          "None",
+		OperatingSystem:            "Linux",
+		ServerName:                 "Gellyte",
+		Version:                    "10.11.8",
+		ServerVersion:              "10.11.8",
+		Id:                         ServerUUID,
+		HasUpdateAvailable:         false,
+		CanSelfRestart:             false,
+		CanSelfUpdate:              false,
+		WebSocketPortNumber:        8081,
+		SupportsHttps:              false,
+		SupportsLibraryUninstall:   false,
+		HasPendingRestart:          false,
+		IsShuttingDown:             false,
+		SupportsPatcher:            false,
+		CompletedInstallations:     []string{},
+		CanLaunchWebBrowser:        false,
+		HardwareAccelerationDrivers: []string{},
+		HasToken:                   true,
+		EncoderLocation:            "/usr/bin/ffmpeg",
 	})
 }
 
@@ -66,12 +66,6 @@ func GetEndpointInfo(c *gin.Context) {
 	})
 }
 
-// GetDummySocket simplemente acepta la conexión pero no hace nada por ahora.
-func GetDummySocket(c *gin.Context) {
-	// Jellyfin espera un upgrade a WebSocket. Por ahora devolvemos un error controlado
-	// para que la app pase a modo polling si es necesario.
-	c.String(http.StatusNotImplemented, "WebSocket not implemented yet")
-}
 
 // GetQuickConnectEnabled godoc
 // @Summary Comprobar si QuickConnect está habilitado
@@ -92,6 +86,9 @@ func GetQuickConnectEnabled(c *gin.Context) {
 // @Success 200 {object} map[string]interface{}
 // @Router /Branding/Configuration [get]
 func GetBrandingConfiguration(c *gin.Context) {
-	// Devolvemos un objeto vacío, ya que no tenemos branding personalizado.
-	c.JSON(http.StatusOK, gin.H{})
+	c.JSON(http.StatusOK, gin.H{
+		"LoginDisclaimer": "",
+		"CustomCss": "",
+		"SplashscreenEnabled": false,
+	})
 }

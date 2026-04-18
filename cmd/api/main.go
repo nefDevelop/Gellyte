@@ -4,6 +4,7 @@ import (
 	"log"
 
 	_ "github.com/gellyte/gellyte/docs"
+	"github.com/gellyte/gellyte/internal/api/discovery"
 	"github.com/gellyte/gellyte/internal/api/handlers"
 	"github.com/gellyte/gellyte/internal/api/middleware"
 	"github.com/gellyte/gellyte/internal/database"
@@ -23,11 +24,17 @@ import (
 func main() {
 	database.InitDB()
 	seedDatabase()
+	go func() {
+		ssdp := discovery.SSDPServer{Port: 8081, ServerID: handlers.ServerUUID}
+		ssdp.Start()
+	}()
+
 	go library.WatchFolder("./media/peliculas")
 
 	r := gin.Default()
 
 	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.ResponseLoggerMiddleware())
 	r.Use(middleware.EmbyAuthMiddleware())
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -35,59 +42,45 @@ func main() {
 	// --- RUTAS COMPATIBLES (CON ALIAS) ---
 
 	// Sistema
-	systemGroup := r.Group("/")
-	{
-		systemGroup.GET("/System/Info/Public", handlers.GetPublicInfo)
-		systemGroup.GET("/emby/System/Info/Public", handlers.GetPublicInfo)
-		systemGroup.GET("/System/Info", handlers.GetSystemInfo)
-		systemGroup.GET("/emby/System/Info", handlers.GetSystemInfo)
-	}
+	r.GET("/System/Info/Public", handlers.GetPublicInfo)
+	r.GET("/system/info/public", handlers.GetPublicInfo)
+	r.GET("/emby/System/Info/Public", handlers.GetPublicInfo)
+	r.GET("/System/Info", handlers.GetSystemInfo)
+	r.GET("/system/info", handlers.GetSystemInfo)
+	r.GET("/emby/System/Info", handlers.GetSystemInfo)
 
 	// Usuarios y Auth
-	authGroup := r.Group("/")
-	{
-		authGroup.GET("/Users/Public", handlers.GetPublicUsers)
-		authGroup.GET("/emby/Users/Public", handlers.GetPublicUsers)
-		authGroup.GET("/Users", handlers.GetPublicUsers)
-		authGroup.GET("/emby/Users", handlers.GetPublicUsers)
+	r.GET("/Users/Public", handlers.GetPublicUsers)
+	r.GET("/users/public", handlers.GetPublicUsers)
+	r.GET("/emby/Users/Public", handlers.GetPublicUsers)
+	r.GET("/Users", handlers.GetPublicUsers)
+	r.GET("/users", handlers.GetPublicUsers)
+	r.GET("/emby/Users", handlers.GetPublicUsers)
 
-		authGroup.POST("/Users/AuthenticateByName", handlers.AuthenticateByName)
-		authGroup.POST("/Users/authenticatebyname", handlers.AuthenticateByName)
-		authGroup.POST("/emby/Users/AuthenticateByName", handlers.AuthenticateByName)
-		authGroup.POST("/emby/Users/authenticatebyname", handlers.AuthenticateByName)
-
-		authGroup.GET("/Users/Me", handlers.GetCurrentUser)
-		authGroup.GET("/Users/:id", handlers.GetUserById)
-		authGroup.GET("/emby/Users/:id", handlers.GetUserById)
-	}
+	r.POST("/Users/AuthenticateByName", handlers.AuthenticateByName)
+	r.POST("/users/authenticatebyname", handlers.AuthenticateByName)
+	r.POST("/emby/Users/AuthenticateByName", handlers.AuthenticateByName)
+	r.POST("/Users/:id", handlers.GetUserById)
+	r.GET("/Users/Me", handlers.GetCurrentUser)
+	r.GET("/users/me", handlers.GetCurrentUser)
 
 	// Vistas y Preferencias
-	viewGroup := r.Group("/")
-	{
-		viewGroup.GET("/Users/:id/Views", handlers.GetUserViews)
-		viewGroup.GET("/emby/Users/:id/Views", handlers.GetUserViews)
-		viewGroup.GET("/DisplayPreferences/usersettings", handlers.GetDisplayPreferences)
-		viewGroup.GET("/Users/:id/DisplayPreferences", handlers.GetDisplayPreferences)
-	}
+	r.GET("/Users/:id/Views", handlers.GetUserViews)
+	r.GET("/users/:id/views", handlers.GetUserViews)
+	r.GET("/DisplayPreferences/usersettings", handlers.GetDisplayPreferences)
+	r.GET("/displaypreferences/usersettings", handlers.GetDisplayPreferences)
 
 	// Biblioteca
-	libraryGroup := r.Group("/")
-	{
-		libraryGroup.GET("/Library/VirtualFolders", handlers.GetVirtualFolders)
-		libraryGroup.GET("/emby/Library/VirtualFolders", handlers.GetVirtualFolders)
-		libraryGroup.GET("/Items", handlers.GetItems)
-		libraryGroup.GET("/emby/Items", handlers.GetItems)
-	}
+	r.GET("/Library/VirtualFolders", handlers.GetVirtualFolders)
+	r.GET("/library/virtualfolders", handlers.GetVirtualFolders)
+	r.GET("/Items", handlers.GetItems)
+	r.GET("/items", handlers.GetItems)
 
 	// Reproducción
-	playbackGroup := r.Group("/")
-	{
-		playbackGroup.GET("/Items/:id/PlaybackInfo", handlers.GetPlaybackInfo)
-		playbackGroup.GET("/Videos/:id/stream", handlers.StreamVideo)
-		playbackGroup.POST("/Sessions/Playing", handlers.ReportPlaying)
-		playbackGroup.POST("/Sessions/Playing/Progress", handlers.ReportPlayingProgress)
-		playbackGroup.POST("/Sessions/Playing/Stopped", handlers.ReportPlaying)
-	}
+	r.GET("/Items/:id/PlaybackInfo", handlers.GetPlaybackInfo)
+	r.GET("/Videos/:id/stream", handlers.StreamVideo)
+	r.POST("/Sessions/Playing", handlers.ReportPlaying)
+	r.POST("/Sessions/Playing/Progress", handlers.ReportPlayingProgress)
 
 	// Otros
 	r.NoRoute(func(c *gin.Context) {
@@ -95,19 +88,23 @@ func main() {
 		c.JSON(404, gin.H{"error": "Endpoint not implemented", "path": c.Request.URL.Path})
 	})
 	r.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "Gellyte API Server is running", "version": "10.11.8"})
+		c.JSON(200, gin.H{"message": "Gellyte API Server is running", "version": "10.8.13"})
 	})
 	r.GET("/favicon.ico", func(c *gin.Context) { c.Status(204) })
 	r.GET("/QuickConnect/Enabled", handlers.GetQuickConnectEnabled)
+	r.GET("/quickconnect/enabled", handlers.GetQuickConnectEnabled)
 	r.GET("/Branding/Configuration", handlers.GetBrandingConfiguration)
+	r.GET("/branding/configuration", handlers.GetBrandingConfiguration)
 	r.GET("/System/Endpoint", handlers.GetEndpointInfo)
 	r.GET("/Playback/BitrateTest", handlers.GetBitrateTest)
+	r.POST("/Sessions/Capabilities", handlers.PostCapabilities)
+	r.POST("/sessions/capabilities", handlers.PostCapabilities)
 	r.POST("/Sessions/Capabilities/Full", handlers.PostCapabilities)
 	r.GET("/socket", handlers.GetDummySocket)
 	r.GET("/emby/socket", handlers.GetDummySocket)
 
-	log.Println("Gellyte server starting on :8080")
-	if err := r.Run(":8080"); err != nil {
+	log.Println("Gellyte server starting on :8081")
+	if err := r.Run(":8081"); err != nil {
 		log.Fatal("Failed to run server: ", err)
 	}
 }

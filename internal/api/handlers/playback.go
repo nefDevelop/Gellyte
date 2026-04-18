@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gellyte/gellyte/internal/database"
@@ -16,6 +17,7 @@ import (
 // @Param id path string true "ID del item"
 // @Success 200 {object} map[string]interface{}
 // @Router /Items/{id}/PlaybackInfo [get]
+// GetPlaybackInfo godoc
 func GetPlaybackInfo(c *gin.Context) {
 	id := c.Param("id")
 	
@@ -25,7 +27,11 @@ func GetPlaybackInfo(c *gin.Context) {
 		return
 	}
 
-	// Engañamos a la app diciendo que puede reproducir directamente
+	// Por ahora simulamos que todo es Direct Play para máxima fluidez en el MVP extendido.
+	// Sin embargo, preparamos la estructura para que apps como Swiftfin no den error.
+	
+	streamUrl := fmt.Sprintf("/Videos/%s/stream", item.ID)
+
 	c.JSON(http.StatusOK, gin.H{
 		"MediaSources": []gin.H{
 			{
@@ -34,23 +40,32 @@ func GetPlaybackInfo(c *gin.Context) {
 				"Path":     item.Path,
 				"Type":     "Default",
 				"Container": item.Container,
-				"Name":     item.Name,
+				"Size":      item.Size,
+				"Name":      item.Name,
+				"IsRemote":  false,
 				"SupportsDirectPlay": true,
 				"SupportsDirectStream": true,
-				"SupportsTranscoding": false,
+				"SupportsTranscoding": true, // Decimos que sí para que la app lo considere
+				"SupportsResume":      true,
+				"DirectStreamUrl":     streamUrl,
 				"MediaStreams": []gin.H{
 					{
 						"Type": "Video",
-						"Codec": "h264",
+						"Codec": item.VideoCodec,
 						"IsInterlaced": false,
+						"Width":  item.Width,
+						"Height": item.Height,
+						"BitRate": item.Bitrate,
 					},
 					{
 						"Type": "Audio",
-						"Codec": "aac",
+						"Codec": item.AudioCodec,
+						"IsDefault": true,
 					},
 				},
 			},
 		},
+		"PlaySessionId": "79b3602d385642d99723ecdbf6a4773a",
 	})
 }
 

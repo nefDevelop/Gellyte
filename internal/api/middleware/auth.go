@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"bytes"
 	"log"
 	"net/http/httputil"
 	"strings"
@@ -39,9 +40,9 @@ func EmbyAuthMiddleware() gin.HandlerFunc {
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Emby-Authorization, X-Emby-Token, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Emby-Authorization, X-Emby-Token, X-MediaBrowser-Token, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
-		c.Writer.Header().Set("Access-Control-Expose-Headers", "X-Emby-Token, X-Emby-Authorization")
+		c.Writer.Header().Set("Access-Control-Expose-Headers", "X-Emby-Token, X-Emby-Authorization, X-MediaBrowser-Token")
 		c.Writer.Header().Set("Server", "Kestrel")
 
 		if c.Request.Method == "OPTIONS" {
@@ -75,4 +76,24 @@ func parseEmbyHeader(header string) EmbyAuth {
 		}
 	}
 	return auth
+}
+func ResponseLoggerMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		blw := &bodyLogWriter{body: bytes.NewBufferString(""), ResponseWriter: c.Writer}
+		c.Writer = blw
+		c.Next()
+		if strings.Contains(c.Writer.Header().Get("Content-Type"), "application/json") {
+			log.Printf("[DEBUG] Response %s %s: %s", c.Request.Method, c.Request.URL.Path, blw.body.String())
+		}
+	}
+}
+
+type bodyLogWriter struct {
+	gin.ResponseWriter
+	body *bytes.Buffer
+}
+
+func (w bodyLogWriter) Write(b []byte) (int, error) {
+	w.body.Write(b)
+	return w.ResponseWriter.Write(b)
 }

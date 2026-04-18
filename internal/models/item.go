@@ -19,6 +19,10 @@ type MediaItem struct {
 	Container      string    `json:"Container,omitempty"`
 	Width          int       `json:"Width,omitempty"`
 	Height         int       `json:"Height,omitempty"`
+	Bitrate        int64     `json:"Bitrate,omitempty"`
+	VideoCodec     string    `json:"VideoCodec,omitempty"`
+	AudioCodec     string    `json:"AudioCodec,omitempty"`
+	Size           int64     `json:"Size,omitempty"`
 	CreatedAt      time.Time `json:"-"`
 	UpdatedAt      time.Time `json:"-"`
 }

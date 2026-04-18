@@ -22,21 +22,12 @@ func GetVirtualFolders(c *gin.Context) {
 			"Name":           "Películas",
 			"Locations":      []string{"./media/peliculas"},
 			"CollectionType": "movies",
-			"ItemId":         "12345678-1234-1234-1234-123456789012", // Debe coincidir con auth.go
+			"ItemId":         "12345678-1234-1234-1234-123456789012",
 		},
 	}
 	c.JSON(http.StatusOK, folders)
 }
 
-// GetItems godoc
-// @Summary Listar items de la biblioteca
-// @Description Devuelve los contenidos de una biblioteca con filtros y paginación.
-// @Tags Library
-// @Produce json
-// @Param StartIndex query int false "Índice de inicio"
-// @Param Limit query int false "Límite de resultados"
-// @Success 200 {object} map[string]interface{}
-// @Router /Items [get]
 func GetItems(c *gin.Context) {
 	startIndex, _ := strconv.Atoi(c.DefaultQuery("StartIndex", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("Limit", "50"))
@@ -44,11 +35,9 @@ func GetItems(c *gin.Context) {
 	var items []models.MediaItem
 	var total int64
 
-	// Consultar la base de datos con paginación
 	database.DB.Model(&models.MediaItem{}).Count(&total)
 	database.DB.Offset(startIndex).Limit(limit).Find(&items)
 
-	// Jellyfin espera una estructura específica
 	c.JSON(http.StatusOK, gin.H{
 		"Items":            items,
 		"TotalRecordCount": total,
