@@ -191,12 +191,61 @@ func GetItemDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, mapToDto(item, userId))
 }
 
-// GetNextUp devuelve el siguiente episodio para ver (vacío por ahora).
+// GetNextUp devuelve el siguiente episodio disponible para ver en las series activas del usuario.
 func GetNextUp(c *gin.Context) {
-	c.JSON(http.StatusOK, BaseItemDtoQueryResult{
-		Items:            []BaseItemDto{},
-		TotalRecordCount: 0,
-		StartIndex:       0,
+	userId := c.GetString("UserID")
+	if userId == "" {
+		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+	}
+
+	// 1. Encontrar los últimos episodios reproducidos de cada serie
+	var playedEpisodes []models.UserItemData
+	database.DB.Where("user_id = ? AND played = ?", userId, true).Order("last_played_date desc").Find(&playedEpisodes)
+
+	seenSeries := make(map[string]bool)
+	var nextUpItems []BaseItemDto
+
+	for _, ud := range playedEpisodes {
+		var lastEpisode models.MediaItem
+		if err := database.DB.Where("id = ? AND type = ?", ud.MediaItemID, "Episode").First(&lastEpisode).Error; err != nil {
+			continue
+		}
+
+		// Obtener la serie padre para no repetir
+		seriesId := ""
+		var parent models.MediaItem
+		database.DB.Where("id = ?", lastEpisode.ParentID).First(&parent)
+		if parent.Type == "Season" {
+			seriesId = parent.ParentID
+		} else {
+			seriesId = parent.ID
+		}
+
+		if seenSeries[seriesId] {
+			continue
+		}
+		seenSeries[seriesId] = true
+
+		// 2. Buscar el "siguiente" episodio en la base de datos
+		// El siguiente episodio debería estar en la misma temporada (ParentID) y tener un nombre alfabéticamente posterior
+		var nextEpisode models.MediaItem
+		err := database.DB.Where("parent_id = ? AND name > ? AND type = ?", lastEpisode.ParentID, lastEpisode.Name, "Episode").Order("name asc").First(&nextEpisode).Error
+		
+		if err == nil {
+			// Comprobar si el siguiente ya ha sido visto
+			var nextData models.UserItemData
+			database.DB.Where("user_id = ? AND media_item_id = ?", userId, nextEpisode.ID).First(&nextData)
+			if !nextData.Played {
+				nextUpItems = append(nextUpItems, mapToDto(nextEpisode, userId))
+			}
+		} else {
+			// TODO: Si no hay más en esta temporada, buscar el primer episodio de la siguiente temporada
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"Items":            nextUpItems,
+		"TotalRecordCount": len(nextUpItems),
 	})
 }
 

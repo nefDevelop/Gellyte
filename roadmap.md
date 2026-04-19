@@ -50,7 +50,7 @@
     - [x] Endpoint `/UserViews` para compatibilidad con Streamyfin.
     - [x] Endpoints `/Items/Latest` y `/Items/Suggestions`.
     - [x] Persistencia real de progreso en DB (Resume Items).
-    - [ ] Lógica de "Next Up" para series.
+    - [x] Lógica de "Next Up" para series.
     - [x] Búsqueda básica por texto (`searchTerm`).
 
 - [x] **Hito 9: Jerarquía de Series (TV Shows)**
