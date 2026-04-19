@@ -66,12 +66,12 @@ func WatchFolder(path string, libType string) {
 	if err != nil {
 		log.Fatal("Error añadiendo carpeta al monitor: ", err)
 	}
-	
+
 	// Escaneo inicial rápido
 	log.Println("Iniciando escaneo inicial de:", path)
 	scanInitial(path, libType, path)
 
-	log.Printf("Monitor de biblioteca activo en: %s (Tipo: %s)", path, libType)
+	//log.Printf("Monitor de biblioteca activo en: %s (Tipo: %s)", path, libType)
 	<-done
 }
 
@@ -98,10 +98,10 @@ func processFile(path string, libType string, libRoot string) {
 
 	name := filepath.Base(path)
 	ext := filepath.Ext(path)
-	
+
 	var item models.MediaItem
 	err := database.DB.Where("path = ?", path).First(&item).Error
-	
+
 	if err != nil { // No existe, crear uno nuevo
 		itemType := "Movie"
 		parentId := "12345678-1234-1234-1234-123456789012" // Default Movies Library
@@ -197,14 +197,14 @@ func processDirectory(path string, libType string, libRoot string) {
 	}
 
 	database.DB.Create(&newItem)
-	log.Printf("[Library] Carpeta detectada: %s (%s)", name, itemType)
+	//log.Printf("[Library] Carpeta detectada: %s (%s)", name, itemType)
 	handlers.NotifyLibraryChanged()
 }
 
 // removeItem elimina un archivo de la base de datos si es borrado del disco.
 func removeItem(path string) {
 	database.DB.Where("path = ?", path).Delete(&models.MediaItem{})
-	log.Printf("[Library] Item eliminado: %s", filepath.Base(path))
+	//log.Printf("[Library] Item eliminado: %s", filepath.Base(path))
 }
 
 func isVideoFile(path string) bool {

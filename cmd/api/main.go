@@ -99,7 +99,7 @@ func main() {
 	r.GET("/Videos/:id/hls/:segmentId/stream.ts", handlers.GetHlsSegment)
 
 	r.NoRoute(func(c *gin.Context) {
-		log.Printf("[404] No encontrado: %s %s", c.Request.Method, c.Request.URL.Path)
+		////log.Printf("[404] No encontrado: %s %s", c.Request.Method, c.Request.URL.Path)
 		c.JSON(404, gin.H{"error": "Endpoint not implemented", "path": c.Request.URL.Path})
 	})
 	r.Match([]string{"GET", "HEAD"}, "/", func(c *gin.Context) {

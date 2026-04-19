@@ -2,8 +2,6 @@ package middleware
 
 import (
 	"bytes"
-	"log"
-	"net/http/httputil"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -19,9 +17,6 @@ type EmbyAuth struct {
 
 func EmbyAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// --- DUMP TOTAL DE LA PETICIÓN ---
-		dump, _ := httputil.DumpRequest(c.Request, true)
-		log.Printf("\n--- NEW REQUEST ---\n%s\n-------------------\n", string(dump))
 
 		authHeader := c.GetHeader("X-Emby-Authorization")
 		if authHeader == "" {
@@ -68,23 +63,23 @@ func parseEmbyHeader(header string) EmbyAuth {
 		key := kv[0]
 		val := strings.Trim(kv[1], "\"")
 		switch key {
-		case "Client": auth.Client = val
-		case "Device": auth.Device = val
-		case "DeviceId": auth.DeviceId = val
-		case "Version": auth.Version = val
-		case "Token": auth.Token = val
+		case "Client":
+			auth.Client = val
+		case "Device":
+			auth.Device = val
+		case "DeviceId":
+			auth.DeviceId = val
+		case "Version":
+			auth.Version = val
+		case "Token":
+			auth.Token = val
 		}
 	}
 	return auth
 }
 func ResponseLoggerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		blw := &bodyLogWriter{body: bytes.NewBufferString(""), ResponseWriter: c.Writer}
-		c.Writer = blw
 		c.Next()
-		if strings.Contains(c.Writer.Header().Get("Content-Type"), "application/json") {
-			log.Printf("[DEBUG] Response %s %s: %s", c.Request.Method, c.Request.URL.Path, blw.body.String())
-		}
 	}
 }
 

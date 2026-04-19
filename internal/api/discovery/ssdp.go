@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"strings"
 )
@@ -21,23 +20,23 @@ const (
 func (s *SSDPServer) Start() {
 	addr, err := net.ResolveUDPAddr("udp4", multicastAddr)
 	if err != nil {
-		log.Printf("[SSDP] Error resolviendo dirección multicast: %v", err)
+		//log.Printf("[SSDP] Error resolviendo dirección multicast: %v", err)
 		return
 	}
 
 	conn, err := net.ListenMulticastUDP("udp4", nil, addr)
 	if err != nil {
-		log.Printf("[SSDP] Error escuchando multicast: %v", err)
+		//log.Printf("[SSDP] Error escuchando multicast: %v", err)
 		return
 	}
 
-	log.Printf("[SSDP] Servidor de descubrimiento iniciado en %s", multicastAddr)
+	//log.Printf("[SSDP] Servidor de descubrimiento iniciado en %s", multicastAddr)
 
 	buf := make([]byte, 1024)
 	for {
 		n, src, err := conn.ReadFromUDP(buf)
 		if err != nil {
-			log.Printf("[SSDP] Error leyendo de UDP: %v", err)
+			//log.Printf("[SSDP] Error leyendo de UDP: %v", err)
 			continue
 		}
 
@@ -58,10 +57,10 @@ func (s *SSDPServer) respond(dest *net.UDPAddr) {
 	}
 	defer conn.Close()
 
-	// Location debe apuntar a la IP real del servidor. 
+	// Location debe apuntar a la IP real del servidor.
 	// Aquí usamos una simplificación; en producción se detectaría la IP de la interfaz.
 	location := fmt.Sprintf("http://localhost:%d/System/Info/Public", s.Port)
-	
+
 	response := fmt.Sprintf(
 		"HTTP/1.1 200 OK\r\n"+
 			"CACHE-CONTROL: max-age=1800\r\n"+

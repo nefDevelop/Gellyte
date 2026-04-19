@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,7 +24,7 @@ import (
 // GetPlaybackInfo godoc
 func GetPlaybackInfo(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var item models.MediaItem
 	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Item no encontrado"})
@@ -34,39 +33,39 @@ func GetPlaybackInfo(c *gin.Context) {
 
 	// Por ahora simulamos que todo es Direct Play para máxima fluidez en el MVP extendido.
 	// Sin embargo, preparamos la estructura para que apps como Swiftfin no den error.
-	
+
 	streamUrl := fmt.Sprintf("/Videos/%s/stream", item.ID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"MediaSources": []gin.H{
 			{
-				"Protocol": "Http",
-				"Id":       item.ID,
-				"Path":     item.Path,
-				"Type":     "Default",
-				"Container": item.Container,
-				"Size":      item.Size,
-				"Name":      item.Name,
-				"IsRemote":  false,
-				"SupportsDirectPlay": true,
+				"Protocol":             "Http",
+				"Id":                   item.ID,
+				"Path":                 item.Path,
+				"Type":                 "Default",
+				"Container":            item.Container,
+				"Size":                 item.Size,
+				"Name":                 item.Name,
+				"IsRemote":             false,
+				"SupportsDirectPlay":   true,
 				"SupportsDirectStream": true,
-				"SupportsTranscoding": true, // Decimos que sí para que la app lo considere
-				"SupportsResume":      true,
-				"DirectStreamUrl":     streamUrl,
-				"RunTimeTicks":        item.RunTimeTicks,
-				"Bitrate":             item.Bitrate,
+				"SupportsTranscoding":  true, // Decimos que sí para que la app lo considere
+				"SupportsResume":       true,
+				"DirectStreamUrl":      streamUrl,
+				"RunTimeTicks":         item.RunTimeTicks,
+				"Bitrate":              item.Bitrate,
 				"MediaStreams": []gin.H{
 					{
-						"Type": "Video",
-						"Codec": item.VideoCodec,
+						"Type":         "Video",
+						"Codec":        item.VideoCodec,
 						"IsInterlaced": false,
-						"Width":  item.Width,
-						"Height": item.Height,
-						"BitRate": item.Bitrate,
+						"Width":        item.Width,
+						"Height":       item.Height,
+						"BitRate":      item.Bitrate,
 					},
 					{
-						"Type": "Audio",
-						"Codec": item.AudioCodec,
+						"Type":      "Audio",
+						"Codec":     item.AudioCodec,
 						"IsDefault": true,
 					},
 				},
@@ -84,7 +83,7 @@ func GetPlaybackInfo(c *gin.Context) {
 // @Router /Videos/{id}/stream [get]
 func StreamVideo(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var item models.MediaItem
 	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Video no encontrado"})
@@ -153,7 +152,7 @@ func ReportPlayingProgress(c *gin.Context) {
 
 	// Update or Create usando GORM
 	database.DB.Where(&userData).FirstOrCreate(&userData)
-	
+
 	userData.PlaybackPositionTicks = req.PositionTicks
 	userData.Played = isPlayed
 	userData.LastPlayedDate = time.Now()
@@ -190,7 +189,7 @@ func TranscodeVideo(c *gin.Context) {
 	}
 
 	cmd := transcoder.BuildTranscodeCmd(item, opts)
-	
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falló el pipe de FFmpeg"})
@@ -209,7 +208,7 @@ func TranscodeVideo(c *gin.Context) {
 	// Transmitir datos en vivo
 	_, err = io.Copy(c.Writer, stdout)
 	if err != nil {
-		log.Printf("[Transcoder] Error durante el streaming: %v", err)
+		//log.Printf("[Transcoder] Error durante el streaming: %v", err)
 	}
 
 	cmd.Process.Kill() // Asegurarse de cerrar FFmpeg al terminar
