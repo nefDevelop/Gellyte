@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 
 	_ "github.com/gellyte/gellyte/docs"
 	"github.com/gellyte/gellyte/internal/api/discovery"
@@ -86,6 +87,7 @@ func main() {
 	// Reproducción
 	r.GET("/Items/:id/PlaybackInfo", handlers.GetPlaybackInfo)
 	r.GET("/Videos/:id/stream", handlers.StreamVideo)
+	r.POST("/Items/:id/PlaybackInfo", handlers.GetPlaybackInfo) // El cliente puede enviar POST para PlaybackInfo
 	r.GET("/Items/:id/Images/:imageType", handlers.GetItemImage)
 	r.GET("/items/:id/images/:imageType", handlers.GetItemImage)
 	r.POST("/Sessions/Playing", handlers.ReportPlaying)
@@ -115,22 +117,37 @@ func main() {
 	r.POST("/Sessions/Capabilities", handlers.PostCapabilities)
 	r.POST("/sessions/capabilities", handlers.PostCapabilities)
 	r.POST("/Sessions/Capabilities/Full", handlers.PostCapabilities)
+	// Health check endpoints
+	r.GET("/health", func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/Health", func(c *gin.Context) { c.Status(http.StatusOK) })      // Common casing variation
+	r.GET("/emby/Health", func(c *gin.Context) { c.Status(http.StatusOK) }) // Emby specific health check
 	r.GET("/socket", handlers.GetDummySocket)
 	r.GET("/emby/socket", handlers.GetDummySocket)
 	r.GET("/UserViews", handlers.GetUserViews)
 	r.GET("/userviews", handlers.GetUserViews)
 	r.GET("/Shows/NextUp", handlers.GetNextUp)
-	r.GET("/shows/nextup", handlers.GetNextUp)          // Keep this line as it is
-	r.GET("/UserItems/Resume", handlers.GetResumeItems) // Keep this line as it is
+	r.GET("/shows/nextup", handlers.GetNextUp)
+	r.GET("/UserItems/Resume", handlers.GetResumeItems)
+	r.GET("/Items/:id/SpecialFeatures", handlers.GetSpecialFeatures) // Nuevo handler
+	r.GET("/items/:id/specialfeatures", handlers.GetSpecialFeatures) // Nuevo handler
+	r.GET("/Items/:id/Ancestors", handlers.GetAncestors)             // Nuevo handler
+	r.GET("/items/:id/ancestors", handlers.GetAncestors)             // Nuevo handler
+	r.GET("/Items/:id/Similar", handlers.GetSimilarItems)            // Nuevo handler
+	r.GET("/items/:id/similar", handlers.GetSimilarItems)            // Nuevo handler
+	r.GET("/MediaSegments/:id", handlers.GetMediaSegments)           // Nuevo handler para MediaSegments
+	r.GET("/mediasegments/:id", handlers.GetMediaSegments)           // Alias para MediaSegments
+	r.GET("/Users/:id/Images/Primary", handlers.GetUserPrimaryImage) // Nuevo handler
+	r.GET("/users/:id/images/primary", handlers.GetUserPrimaryImage) // Nuevo handler
 	r.GET("/useritems/resume", handlers.GetResumeItems)
 	r.GET("/Items/Latest", handlers.GetLatestItems)
 	r.GET("/items/latest", handlers.GetLatestItems)
 	r.GET("/Items/Suggestions", handlers.GetSuggestions)
 	r.GET("/items/suggestions", handlers.GetSuggestions)
+	r.GET("/api/ws/dashboard", handlers.GetDummySocket) // Handle WebSocket dashboard requests
 	r.GET("/Streamyfin/config", func(c *gin.Context) { c.JSON(200, gin.H{}) })
 
-	log.Println("Gellyte server starting on :8080")
-	if err := r.Run(":8080"); err != nil {
+	log.Println("Gellyte server starting on :8081")
+	if err := r.Run(":8081"); err != nil {
 		log.Fatal("Failed to run server: ", err)
 	}
 }

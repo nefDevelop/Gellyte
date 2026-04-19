@@ -107,7 +107,7 @@ func GetItems(c *gin.Context) {
 // GetItemImage devuelve la imagen asociada a un item.
 func GetItemImage(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var item models.MediaItem
 	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
 		c.Status(http.StatusNotFound)
@@ -150,6 +150,46 @@ func findImage(dir, itemName string) string {
 	return ""
 }
 
+// GetUserPrimaryImage handles requests for user primary images.
+func GetUserPrimaryImage(c *gin.Context) {
+	// For now, return a 404 as we don't have user images implemented.
+	// In a real scenario, you would fetch the user's image based on the ID.
+	c.Status(http.StatusNotFound)
+}
+
+// GetSpecialFeatures handles requests for special features.
+func GetSpecialFeatures(c *gin.Context) {
+	// For now, return an empty result as special features are not implemented.
+	c.JSON(http.StatusOK, gin.H{
+		"Items":            []BaseItemDto{},
+		"TotalRecordCount": 0,
+	})
+}
+
+// GetAncestors handles requests for item ancestors.
+func GetAncestors(c *gin.Context) {
+	// For now, return an empty result as ancestors are not fully implemented.
+	c.JSON(http.StatusOK, []BaseItemDto{})
+}
+
+// GetSimilarItems handles requests for similar items.
+func GetSimilarItems(c *gin.Context) {
+	// For now, return an empty result as similar items logic is not implemented.
+	c.JSON(http.StatusOK, gin.H{
+		"Items":            []BaseItemDto{},
+		"TotalRecordCount": 0,
+	})
+}
+
+// GetMediaSegments handles requests for media segments.
+func GetMediaSegments(c *gin.Context) {
+	// For now, return an empty result as media segments are not implemented.
+	// This endpoint is often used for trickplay or other advanced streaming features.
+	c.JSON(http.StatusOK, gin.H{
+		"Items":            []BaseItemDto{},
+		"TotalRecordCount": 0,
+	})
+}
 
 // GetItemDetails devuelve los detalles de un item específico o carpeta virtual.
 func GetItemDetails(c *gin.Context) {
@@ -230,7 +270,7 @@ func GetNextUp(c *gin.Context) {
 		// El siguiente episodio debería estar en la misma temporada (ParentID) y tener un nombre alfabéticamente posterior
 		var nextEpisode models.MediaItem
 		err := database.DB.Where("parent_id = ? AND name > ? AND type = ?", lastEpisode.ParentID, lastEpisode.Name, "Episode").Order("name asc").First(&nextEpisode).Error
-		
+
 		if err == nil {
 			// Comprobar si el siguiente ya ha sido visto
 			var nextData models.UserItemData
@@ -263,7 +303,7 @@ func GetLatestItems(c *gin.Context) {
 	if itemTypes == "" {
 		itemTypes = c.Query("includeItemTypes")
 	}
-	
+
 	query := database.DB.Model(&models.MediaItem{})
 
 	if parentId == "12345678-1234-1234-1234-123456789012" {
@@ -318,7 +358,7 @@ func GetResumeItems(c *gin.Context) {
 // GetSuggestions devuelve sugerencias para el usuario (usamos los últimos añadidos por ahora).
 func GetSuggestions(c *gin.Context) {
 	userId := c.GetString("UserID")
-	
+
 	var items []models.MediaItem
 	database.DB.Order("created_at desc").Limit(10).Find(&items)
 

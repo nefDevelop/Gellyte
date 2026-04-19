@@ -193,21 +193,32 @@ func TranscodeVideo(c *gin.Context) {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		log.Printf("[Transcoder] Error creando stdout pipe para FFmpeg: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falló el pipe de FFmpeg"})
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
+		log.Printf("[Transcoder] Error iniciando FFmpeg: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falló el inicio de FFmpeg"})
 		return
 	}
+
+	// Asegurarse de que el proceso de FFmpeg se termine si el cliente se desconecta prematuramente
+	// o si hay un error durante el streaming.
+	defer func() {
+		cmd.Process.Kill()
+		cmd.Wait() // Esperar a que el proceso realmente termine
+	}()
 
 	// Configurar headers para streaming
 	c.Header("Content-Type", "video/x-matroska")
 	c.Header("Transfer-Encoding", "chunked")
 
 	// Transmitir datos en vivo
-	_, err = io.Copy(c.Writer, stdout) // This will block until stdout is closed or an error occurs
+	_, err = io.Copy(c.Writer, stdout) // This will block until stdout is closed or an error occurs.
+	// The defer function will handle cmd.Process.Kill() and cmd.Wait()
+
 	if err != nil {
 		//log.Printf("[Transcoder] Error durante el streaming: %v", err)
 	}
@@ -278,7 +289,9 @@ func GetHlsSegment(c *gin.Context) {
 
 	c.Header("Content-Type", "video/mp2t")
 	io.Copy(c.Writer, stdout)
-	if err := cmd.Wait(); err != nil {
-		log.Printf("[Transcoder] FFmpeg para segmento HLS terminó con error: %v", err)
+	// Asegurarse de que el proceso de FFmpeg se termine y se espere
+	cmd.Process.Kill()
+	if err := cmd.Wait(); err != nil && err.Error() != "signal: killed" { // Ignorar el error "signal: killed" ya que es esperado después de Kill()
+		log.Printf("[Transcoder] FFmpeg para segmento HLS terminó con error inesperado: %v", err)
 	}
 }
