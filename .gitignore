@@ -1,0 +1,40 @@
+# Binaries
+/gellyte
+/cmd/api/api
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Media and Database (Datos de ejemplo)
+/media/
+/gellyte.db
+gellyte.db-journal
+gellyte.db-shm
+gellyte.db-wal
+
+# Logs
+*.log
+
+# Dependencies
+/vendor/
+/go.sum
+
+# OS Specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Swagger / Docs
+/docs

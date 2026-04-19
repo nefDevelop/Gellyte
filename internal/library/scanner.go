@@ -87,10 +87,15 @@ func processFile(path string) {
 	err := database.DB.Where("path = ?", path).First(&item).Error
 	
 	if err != nil { // No existe, crear uno nuevo
+		itemType := "Movie"
+		if strings.Contains(strings.ToLower(path), "/series/") {
+			itemType = "Episode"
+		}
+
 		newItem := models.MediaItem{
 			Name:      strings.TrimSuffix(name, ext),
 			Path:      path,
-			Type:      "Movie", // Por ahora asumimos películas
+			Type:      itemType,
 			Container: strings.TrimPrefix(ext, "."),
 		}
 		database.DB.Create(&newItem)

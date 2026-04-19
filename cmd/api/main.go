@@ -30,6 +30,7 @@ func main() {
 	}()
 
 	go library.WatchFolder("./media/peliculas")
+	go library.WatchFolder("./media/series")
 
 	r := gin.Default()
 
@@ -75,19 +76,26 @@ func main() {
 	r.GET("/library/virtualfolders", handlers.GetVirtualFolders)
 	r.GET("/Items", handlers.GetItems)
 	r.GET("/items", handlers.GetItems)
+	r.GET("/Items/:id", handlers.GetItemDetails)
+	r.GET("/items/:id", handlers.GetItemDetails)
 
 	// Reproducción
 	r.GET("/Items/:id/PlaybackInfo", handlers.GetPlaybackInfo)
 	r.GET("/Videos/:id/stream", handlers.StreamVideo)
+	r.GET("/Items/:id/Images/:imageType", handlers.GetItemImage)
+	r.GET("/items/:id/images/:imageType", handlers.GetItemImage)
 	r.POST("/Sessions/Playing", handlers.ReportPlaying)
 	r.POST("/Sessions/Playing/Progress", handlers.ReportPlayingProgress)
+	r.GET("/Sessions", handlers.GetSessions)
+	r.GET("/sessions", handlers.GetSessions)
+	r.GET("/emby/Sessions", handlers.GetSessions)
 
 	// Otros
 	r.NoRoute(func(c *gin.Context) {
 		log.Printf("[404] No encontrado: %s %s", c.Request.Method, c.Request.URL.Path)
 		c.JSON(404, gin.H{"error": "Endpoint not implemented", "path": c.Request.URL.Path})
 	})
-	r.GET("/", func(c *gin.Context) {
+	r.Match([]string{"GET", "HEAD"}, "/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "Gellyte API Server is running", "version": "10.8.13"})
 	})
 	r.GET("/favicon.ico", func(c *gin.Context) { c.Status(204) })
@@ -102,6 +110,17 @@ func main() {
 	r.POST("/Sessions/Capabilities/Full", handlers.PostCapabilities)
 	r.GET("/socket", handlers.GetDummySocket)
 	r.GET("/emby/socket", handlers.GetDummySocket)
+	r.GET("/UserViews", handlers.GetUserViews)
+	r.GET("/userviews", handlers.GetUserViews)
+	r.GET("/Shows/NextUp", handlers.GetNextUp)
+	r.GET("/shows/nextup", handlers.GetNextUp)
+	r.GET("/UserItems/Resume", handlers.GetResumeItems)
+	r.GET("/useritems/resume", handlers.GetResumeItems)
+	r.GET("/Items/Latest", handlers.GetLatestItems)
+	r.GET("/items/latest", handlers.GetLatestItems)
+	r.GET("/Items/Suggestions", handlers.GetSuggestions)
+	r.GET("/items/suggestions", handlers.GetSuggestions)
+	r.GET("/Streamyfin/config", func(c *gin.Context) { c.JSON(200, gin.H{}) })
 
 	log.Println("Gellyte server starting on :8081")
 	if err := r.Run(":8081"); err != nil {

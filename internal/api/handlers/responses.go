@@ -206,3 +206,9 @@ type UserItemDataDto struct {
 	LastPlayedDate        string  `json:"LastPlayedDate"`
 	Rating                float64 `json:"Rating"`
 }
+
+type BaseItemDtoQueryResult struct {
+	Items            []BaseItemDto `json:"Items"`
+	TotalRecordCount int           `json:"TotalRecordCount"`
+	StartIndex       int           `json:"StartIndex"`
+}

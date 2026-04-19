@@ -25,7 +25,8 @@
 - [x] **Hito 4: Reproducción Básica (Direct Play)**
     - [x] Endpoint `/Videos/{id}/stream` (Soporte de Byte-Range / HTTP 206).
     - [x] Endpoint `/Items/{id}/PlaybackInfo` (Engañar a la app para forzar Direct Play).
-    - [x] Implementar `/Sessions/Playing` para sincronizar progreso.
+    - [x] Implementar `/Sessions/Playing` y `/Playing/Progress`.
+    - [x] Soporte para imágenes locales (`poster.jpg`, `folder.jpg`).
 
 ---
 
@@ -39,10 +40,28 @@
 - [ ] **Hito 6: Streaming Adaptativo**
     - [ ] Soporte para HLS (HTTP Live Streaming).
     - [ ] Generación de segmentos dinámicos con FFmpeg.
-- [ ] **Hito 7: Automatización y Escaneo**
-    - [ ] Escáner de sistema de archivos para poblar la DB automáticamente.
-    - [ ] Extracción de metadatos técnicos (ffprobe).
-    - [ ] Soporte básico para archivos `.nfo` locales para evitar consultas externas.
+- [ ] **Hito 7: Automatización y Escaneo Profundo**
+    - [x] Escáner de sistema de archivos (fsnotify).
+    - [ ] Extracción de metadatos técnicos avanzados (ffprobe: duración, resolución, streams).
+    - [ ] Soporte básico para archivos `.nfo` locales.
+    - [ ] Generación de capturas de pantalla (Thumbnails).
+
+- [ ] **Hito 8: Experiencia de Usuario y Home Screen**
+    - [x] Endpoint `/UserViews` para compatibilidad con Streamyfin.
+    - [x] Endpoints `/Items/Latest` y `/Items/Suggestions`.
+    - [ ] Persistencia real de progreso en DB (Resume Items).
+    - [ ] Lógica de "Next Up" para series.
+    - [ ] Búsqueda global (`/Search/Hints`).
+
+- [ ] **Hito 9: Jerarquía de Series (TV Shows)**
+    - [ ] Detección inteligente de Estructura: Serie -> Temporada -> Episodio.
+    - [ ] Endpoints `/Shows/:id/Seasons` y `/Seasons/:id/Episodes`.
+    - [ ] Agrupamiento en la interfaz de usuario.
+
+- [ ] **Hito 10: WebSocket y Notificaciones en Tiempo Real**
+    - [x] Handshake estándar compatible con RFC 6455.
+    - [ ] Mensajes de "LibraryChanged" automáticos.
+    - [ ] Mensajes de "UserDataChanged" para sincronización instantánea.
 
 ---
 

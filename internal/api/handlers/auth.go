@@ -202,26 +202,47 @@ func GetUserById(c *gin.Context) {
 
 func GetUserViews(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"Items": []gin.H{{
-			"Name":            "Películas",
-			"ServerId":        ServerUUID,
-			"Id":              "12345678-1234-1234-1234-123456789012",
-			"Type":            "UserView",
-			"CollectionType":  "movies",
-			"ImageTags":       gin.H{},
-			"UserData": gin.H{
-				"PlaybackPositionTicks": 0,
-				"PlayCount":             0,
-				"IsFavorite":            false,
-				"Played":                false,
+		"Items": []gin.H{
+			{
+				"Name":            "Películas",
+				"ServerId":        ServerUUID,
+				"Id":              "12345678-1234-1234-1234-123456789012",
+				"Type":            "CollectionFolder",
+				"CollectionType":  "movies",
+				"ImageTags":       gin.H{},
+				"UserData": gin.H{
+					"PlaybackPositionTicks": 0,
+					"PlayCount":             0,
+					"IsFavorite":            false,
+					"Played":                false,
+				},
+				"IsFolder":                true,
+				"CanDelete":               false,
+				"IsFavorite":              false,
+				"PlayAccess":              "Full",
+				"PrimaryImageAspectRatio": 1.0,
 			},
-			"IsFolder":                true,
-			"CanDelete":               false,
-			"IsFavorite":              false,
-			"PlayAccess":              "Full",
-			"PrimaryImageAspectRatio": 1.0,
-		}},
-		"TotalRecordCount": 1,
+			{
+				"Name":            "Series",
+				"ServerId":        ServerUUID,
+				"Id":              "22345678-1234-1234-1234-123456789012",
+				"Type":            "CollectionFolder",
+				"CollectionType":  "tvshows",
+				"ImageTags":       gin.H{},
+				"UserData": gin.H{
+					"PlaybackPositionTicks": 0,
+					"PlayCount":             0,
+					"IsFavorite":            false,
+					"Played":                false,
+				},
+				"IsFolder":                true,
+				"CanDelete":               false,
+				"IsFavorite":              false,
+				"PlayAccess":              "Full",
+				"PrimaryImageAspectRatio": 1.0,
+			},
+		},
+		"TotalRecordCount": 2,
 	})
 }
 

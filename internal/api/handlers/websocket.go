@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"crypto/sha1"
+	"encoding/base64"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -33,14 +36,27 @@ func GetDummySocket(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	// Responder con el cambio de protocolo
+	key := c.GetHeader("Sec-WebSocket-Key")
+	if key == "" {
+		c.String(http.StatusBadRequest, "Sec-WebSocket-Key missing")
+		return
+	}
+
+	// Calcular el header Sec-WebSocket-Accept según el estándar RFC 6455
+	h := sha1.New()
+	h.Write([]byte(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
+	acceptKey := base64.StdEncoding.EncodeToString(h.Sum(nil))
+
+	// Responder con el cambio de protocolo siguiendo el estándar
 	log.Printf("[WS] Nueva conexión desde %s", c.Request.RemoteAddr)
 	
-	// Devolvemos la respuesta HTTP mínima para completar el handshake
-	conn.Write([]byte("HTTP/1.1 101 Switching Protocols\r\n" +
-		"Upgrade: websocket\r\n" +
-		"Connection: Upgrade\r\n" +
-		"\r\n"))
+	resp := fmt.Sprintf("HTTP/1.1 101 Switching Protocols\r\n"+
+		"Upgrade: websocket\r\n"+
+		"Connection: Upgrade\r\n"+
+		"Sec-WebSocket-Accept: %s\r\n"+
+		"\r\n", acceptKey)
+	
+	conn.Write([]byte(resp))
 
 	// Mantener la conexión abierta (estilo dummy)
 	buf := make([]byte, 1024)
