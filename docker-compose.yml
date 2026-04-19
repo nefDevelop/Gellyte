@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   gellyte:
@@ -7,7 +7,7 @@ services:
     environment:
       - GIN_MODE=release
     ports:
-      - "8080:8080"
+      - "8080:8081" # Map host port 8080 to container port 8081
     volumes:
       # Base de datos persistente
       - ./gellyte.db:/root/gellyte.db

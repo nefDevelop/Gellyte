@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -206,7 +207,7 @@ func TranscodeVideo(c *gin.Context) {
 	c.Header("Transfer-Encoding", "chunked")
 
 	// Transmitir datos en vivo
-	_, err = io.Copy(c.Writer, stdout)
+	_, err = io.Copy(c.Writer, stdout) // This will block until stdout is closed or an error occurs
 	if err != nil {
 		//log.Printf("[Transcoder] Error durante el streaming: %v", err)
 	}
@@ -264,16 +265,20 @@ func GetHlsSegment(c *gin.Context) {
 	cmd := transcoder.BuildHLSSegmentCmd(item, segmentIdx, 10, opts)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		log.Printf("[Transcoder] Error creando stdout pipe para FFmpeg HLS segment: %v", err)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
+		log.Printf("[Transcoder] Error iniciando FFmpeg para HLS segment: %v", err)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
 
 	c.Header("Content-Type", "video/mp2t")
 	io.Copy(c.Writer, stdout)
-	cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		log.Printf("[Transcoder] FFmpeg para segmento HLS terminó con error: %v", err)
+	}
 }

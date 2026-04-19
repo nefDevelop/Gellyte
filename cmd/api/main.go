@@ -120,8 +120,8 @@ func main() {
 	r.GET("/UserViews", handlers.GetUserViews)
 	r.GET("/userviews", handlers.GetUserViews)
 	r.GET("/Shows/NextUp", handlers.GetNextUp)
-	r.GET("/shows/nextup", handlers.GetNextUp)
-	r.GET("/UserItems/Resume", handlers.GetResumeItems)
+	r.GET("/shows/nextup", handlers.GetNextUp)          // Keep this line as it is
+	r.GET("/UserItems/Resume", handlers.GetResumeItems) // Keep this line as it is
 	r.GET("/useritems/resume", handlers.GetResumeItems)
 	r.GET("/Items/Latest", handlers.GetLatestItems)
 	r.GET("/items/latest", handlers.GetLatestItems)
@@ -129,8 +129,8 @@ func main() {
 	r.GET("/items/suggestions", handlers.GetSuggestions)
 	r.GET("/Streamyfin/config", func(c *gin.Context) { c.JSON(200, gin.H{}) })
 
-	log.Println("Gellyte server starting on :8081")
-	if err := r.Run(":8081"); err != nil {
+	log.Println("Gellyte server starting on :8080")
+	if err := r.Run(":8080"); err != nil {
 		log.Fatal("Failed to run server: ", err)
 	}
 }
