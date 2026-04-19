@@ -87,10 +87,15 @@ func GetItems(c *gin.Context) {
 	query.Count(&total)
 	query.Offset(startIndex).Limit(limit).Find(&dbItems)
 
+	userId := c.GetString("UserID")
+	if userId == "" {
+		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+	}
+
 	// Convertimos a BaseItemDto para cumplir con el esquema Jellyfin
 	respItems := []BaseItemDto{}
 	for _, item := range dbItems {
-		respItems = append(respItems, mapToDto(item))
+		respItems = append(respItems, mapToDto(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -145,14 +150,6 @@ func findImage(dir, itemName string) string {
 	return ""
 }
 
-// GetResumeItems devuelve items para continuar viendo (vacío por ahora).
-func GetResumeItems(c *gin.Context) {
-	c.JSON(http.StatusOK, BaseItemDtoQueryResult{
-		Items:            []BaseItemDto{},
-		TotalRecordCount: 0,
-		StartIndex:       0,
-	})
-}
 
 // GetItemDetails devuelve los detalles de un item específico o carpeta virtual.
 func GetItemDetails(c *gin.Context) {
@@ -186,7 +183,12 @@ func GetItemDetails(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, mapToDto(item))
+	userId := c.GetString("UserID")
+	if userId == "" {
+		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+	}
+
+	c.JSON(http.StatusOK, mapToDto(item, userId))
 }
 
 // GetNextUp devuelve el siguiente episodio para ver (vacío por ahora).
@@ -227,25 +229,63 @@ func GetLatestItems(c *gin.Context) {
 	var dbItems []models.MediaItem
 	query.Order("created_at desc").Limit(limit).Find(&dbItems)
 
+	userId := c.GetString("UserID")
+	if userId == "" {
+		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+	}
+
 	respItems := []BaseItemDto{}
 	for _, item := range dbItems {
-		respItems = append(respItems, mapToDto(item))
+		respItems = append(respItems, mapToDto(item, userId))
 	}
 
 	c.JSON(http.StatusOK, respItems)
 }
 
-// GetSuggestions devuelve sugerencias para el usuario (vacío por ahora).
+// GetResumeItems devuelve items con progreso pendiente (Continuar viendo).
+func GetResumeItems(c *gin.Context) {
+	userId := c.GetString("UserID")
+	if userId == "" {
+		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+	}
+
+	var userDatas []models.UserItemData
+	database.DB.Where("user_id = ? AND playback_position_ticks > 0 AND played = false", userId).Order("last_played_date desc").Find(&userDatas)
+
+	respItems := []BaseItemDto{}
+	for _, ud := range userDatas {
+		var item models.MediaItem
+		if err := database.DB.Where("id = ?", ud.MediaItemID).First(&item).Error; err == nil {
+			respItems = append(respItems, mapToDto(item, userId))
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"Items":            respItems,
+		"TotalRecordCount": len(respItems),
+	})
+}
+
+// GetSuggestions devuelve sugerencias para el usuario (usamos los últimos añadidos por ahora).
 func GetSuggestions(c *gin.Context) {
-	c.JSON(http.StatusOK, BaseItemDtoQueryResult{
-		Items:            []BaseItemDto{},
-		TotalRecordCount: 0,
-		StartIndex:       0,
+	userId := c.GetString("UserID")
+	
+	var items []models.MediaItem
+	database.DB.Order("created_at desc").Limit(10).Find(&items)
+
+	respItems := []BaseItemDto{}
+	for _, item := range items {
+		respItems = append(respItems, mapToDto(item, userId))
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"Items":            respItems,
+		"TotalRecordCount": len(respItems),
 	})
 }
 
 // mapToDto convierte un modelo MediaItem a BaseItemDto.
-func mapToDto(item models.MediaItem) BaseItemDto {
+func mapToDto(item models.MediaItem, userId string) BaseItemDto {
 	parentId := ""
 	if item.Type == "Movie" {
 		parentId = "12345678-1234-1234-1234-123456789012"
@@ -254,6 +294,24 @@ func mapToDto(item models.MediaItem) BaseItemDto {
 	}
 
 	isFolder := item.Type == "Series" || item.Type == "Season" || item.Type == "CollectionFolder" || item.Type == "Folder"
+
+	userData := UserItemDataDto{
+		PlaybackPositionTicks: 0,
+		PlayCount:             0,
+		IsFavorite:            false,
+		Played:                false,
+	}
+
+	// Cargar datos reales del usuario si existe sesión
+	if userId != "" {
+		var dbUserData models.UserItemData
+		if err := database.DB.Where("user_id = ? AND media_item_id = ?", userId, item.ID).First(&dbUserData).Error; err == nil {
+			userData.PlaybackPositionTicks = dbUserData.PlaybackPositionTicks
+			userData.PlayCount = dbUserData.PlayCount
+			userData.IsFavorite = dbUserData.IsFavorite
+			userData.Played = dbUserData.Played
+		}
+	}
 
 	dto := BaseItemDto{
 		Name:                    item.Name,
@@ -272,12 +330,7 @@ func mapToDto(item models.MediaItem) BaseItemDto {
 		PrimaryImageAspectRatio: 0.66,
 		Overview:                item.Overview,
 		ImageTags:               make(map[string]string),
-		UserData: UserItemDataDto{
-			PlaybackPositionTicks: 0,
-			PlayCount:             0,
-			IsFavorite:            false,
-			Played:                false,
-		},
+		UserData:                userData,
 	}
 
 	dir := filepath.Dir(item.Path)

@@ -24,6 +24,10 @@ import (
 func main() {
 	database.InitDB()
 	seedDatabase()
+
+	// Iniciar el Hub de WebSockets
+	go handlers.GlobalHub.Run()
+
 	go func() {
 		ssdp := discovery.SSDPServer{Port: 8081, ServerID: handlers.ServerUUID}
 		ssdp.Start()
@@ -91,6 +95,9 @@ func main() {
 	r.GET("/emby/Sessions", handlers.GetSessions)
 
 	// Otros
+	r.GET("/Videos/:id/main.m3u8", handlers.GetHlsPlaylist)
+	r.GET("/Videos/:id/hls/:segmentId/stream.ts", handlers.GetHlsSegment)
+
 	r.NoRoute(func(c *gin.Context) {
 		log.Printf("[404] No encontrado: %s %s", c.Request.Method, c.Request.URL.Path)
 		c.JSON(404, gin.H{"error": "Endpoint not implemented", "path": c.Request.URL.Path})

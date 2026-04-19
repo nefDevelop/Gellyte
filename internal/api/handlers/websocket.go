@@ -1,70 +1,118 @@
 package handlers
 
 import (
-	"crypto/sha1"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
-// GetDummySocket maneja la conexión WebSocket inicial.
-// Muchos clientes de Jellyfin usan WebSockets para recibir actualizaciones en tiempo real.
-func GetDummySocket(c *gin.Context) {
-	// Comprobar si es un upgrade a WebSocket
-	if c.GetHeader("Upgrade") != "websocket" {
-		c.String(http.StatusBadRequest, "Expected WebSocket upgrade")
-		return
-	}
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Permitir todos los orígenes para entornos locales
+	},
+}
 
-	// Realizar el "handshake" básico manualmente para no depender de librerías externas en este MVP.
-	// Nota: En una app de producción usaríamos gorilla/websocket.
-	// Este placeholder permite que las apps no fallen al intentar conectar.
-	
-	hj, ok := c.Writer.(http.Hijacker)
-	if !ok {
-		c.String(http.StatusInternalServerError, "Webserver doesn't support hijacking")
-		return
-	}
-	
-	conn, _, err := hj.Hijack()
-	if err != nil {
-		log.Printf("[WS] Error al secuestrar conexión: %v", err)
-		return
-	}
-	defer conn.Close()
+// Client representa una conexión activa de WebSocket
+type Client struct {
+	Conn *websocket.Conn
+	Send chan []byte
+}
 
-	key := c.GetHeader("Sec-WebSocket-Key")
-	if key == "" {
-		c.String(http.StatusBadRequest, "Sec-WebSocket-Key missing")
-		return
-	}
+// Hub gestiona el conjunto de clientes activos
+type Hub struct {
+	Clients    map[*Client]bool
+	Broadcast  chan []byte
+	Register   chan *Client
+	Unregister chan *Client
+	mu         sync.Mutex
+}
 
-	// Calcular el header Sec-WebSocket-Accept según el estándar RFC 6455
-	h := sha1.New()
-	h.Write([]byte(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
-	acceptKey := base64.StdEncoding.EncodeToString(h.Sum(nil))
+var GlobalHub = Hub{
+	Broadcast:  make(chan []byte),
+	Register:   make(chan *Client),
+	Unregister: make(chan *Client),
+	Clients:    make(map[*Client]bool),
+}
 
-	// Responder con el cambio de protocolo siguiendo el estándar
-	log.Printf("[WS] Nueva conexión desde %s", c.Request.RemoteAddr)
-	
-	resp := fmt.Sprintf("HTTP/1.1 101 Switching Protocols\r\n"+
-		"Upgrade: websocket\r\n"+
-		"Connection: Upgrade\r\n"+
-		"Sec-WebSocket-Accept: %s\r\n"+
-		"\r\n", acceptKey)
-	
-	conn.Write([]byte(resp))
-
-	// Mantener la conexión abierta (estilo dummy)
-	buf := make([]byte, 1024)
+func (h *Hub) Run() {
 	for {
-		_, err := conn.Read(buf)
+		select {
+		case client := <-h.Register:
+			h.mu.Lock()
+			h.Clients[client] = true
+			h.mu.Unlock()
+			log.Printf("[WS] Cliente registrado. Total: %d", len(h.Clients))
+		case client := <-h.Unregister:
+			h.mu.Lock()
+			if _, ok := h.Clients[client]; ok {
+				delete(h.Clients, client)
+				close(client.Send)
+			}
+			h.mu.Unlock()
+			log.Printf("[WS] Cliente desconectado. Total: %d", len(h.Clients))
+		case message := <-h.Broadcast:
+			h.mu.Lock()
+			for client := range h.Clients {
+				select {
+				case client.Send <- message:
+				default:
+					close(client.Send)
+					delete(h.Clients, client)
+				}
+			}
+			h.mu.Unlock()
+		}
+	}
+}
+
+// GetDummySocket ahora es funcional usando Gorilla WebSocket
+func GetDummySocket(c *gin.Context) {
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("[WS] Error al actualizar a WebSocket: %v", err)
+		return
+	}
+
+	client := &Client{Conn: conn, Send: make(chan []byte, 256)}
+	GlobalHub.Register <- client
+
+	// Lector: Para manejar el cierre de la conexión
+	go func() {
+		defer func() {
+			GlobalHub.Unregister <- client
+			conn.Close()
+		}()
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+		}
+	}()
+
+	// Escritor: Envía mensajes del canal Send al WebSocket real
+	for message := range client.Send {
+		err := conn.WriteMessage(websocket.TextMessage, message)
 		if err != nil {
-			log.Printf("[WS] Conexión cerrada: %v", err)
 			break
 		}
 	}
+}
+
+// NotifyLibraryChanged envía un mensaje a todos los clientes conectados
+func NotifyLibraryChanged() {
+	// Formato de Jellyfin para LibraryChanged
+	msg := []byte(`{"MessageType":"LibraryChanged"}`)
+	GlobalHub.Broadcast <- msg
+}
+
+// NotifyUserDataChanged avisa que el progreso de un item ha cambiado
+func NotifyUserDataChanged(userId string, itemId string) {
+	// Formato de Jellyfin para UserDataChanged
+	msg := fmt.Sprintf(`{"MessageType":"UserDataChanged","Data":{"UserId":"%s","ItemId":"%s"}}`, userId, itemId)
+	GlobalHub.Broadcast <- []byte(msg)
 }

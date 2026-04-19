@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/gellyte/gellyte/internal/api/handlers"
 	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/models"
 )
@@ -152,6 +153,7 @@ func processFile(path string, libType string, libRoot string) {
 		}
 
 		database.DB.Create(&newItem)
+		handlers.NotifyLibraryChanged()
 	}
 }
 
@@ -196,6 +198,7 @@ func processDirectory(path string, libType string, libRoot string) {
 
 	database.DB.Create(&newItem)
 	log.Printf("[Library] Carpeta detectada: %s (%s)", name, itemType)
+	handlers.NotifyLibraryChanged()
 }
 
 // removeItem elimina un archivo de la base de datos si es borrado del disco.
