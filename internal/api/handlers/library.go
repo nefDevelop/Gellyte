@@ -39,25 +39,42 @@ func GetVirtualFolders(c *gin.Context) {
 
 func GetItems(c *gin.Context) {
 	startIndex, _ := strconv.Atoi(c.DefaultQuery("StartIndex", "0"))
+	if startIndex == 0 {
+		startIndex, _ = strconv.Atoi(c.Query("startIndex"))
+	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("Limit", "50"))
+	if limit == 50 && c.Query("limit") != "" {
+		limit, _ = strconv.Atoi(c.Query("limit"))
+	}
+
 	parentId := c.Query("ParentId")
+	if parentId == "" {
+		parentId = c.Query("parentId")
+	}
 	itemTypes := c.Query("IncludeItemTypes")
+	if itemTypes == "" {
+		itemTypes = c.Query("includeItemTypes")
+	}
+	searchTerm := c.Query("SearchTerm")
+	if searchTerm == "" {
+		searchTerm = c.Query("searchTerm")
+	}
 
 	query := database.DB.Model(&models.MediaItem{})
 
-	// Filtrado básico por ParentId (ID de la carpeta virtual)
+	// Búsqueda por nombre
+	if searchTerm != "" {
+		query = query.Where("name LIKE ?", "%"+searchTerm+"%")
+	}
+
+	// Filtrado básico por ParentId (ID de la carpeta virtual o carpeta física)
 	if parentId == "12345678-1234-1234-1234-123456789012" {
 		query = query.Where("type = ?", "Movie")
 	} else if parentId == "22345678-1234-1234-1234-123456789012" {
-		// En la vista de "Series", el cliente suele pedir Series, no episodios directos.
-		// Pero como en este MVP extendido estamos aplanando, devolveremos episodios si se pide explícitamente.
-		if strings.Contains(itemTypes, "Movie") {
-			query = query.Where("type = ?", "Movie")
-		} else if strings.Contains(itemTypes, "Episode") {
-			query = query.Where("type = ?", "Episode")
-		} else {
-			query = query.Where("type = ?", "Episode")
-		}
+		query = query.Where("type = ?", "Series")
+	} else if parentId != "" {
+		// Navegación jerárquica: devolvemos los hijos directos del ParentId
+		query = query.Where("parent_id = ?", parentId)
 	} else if itemTypes != "" {
 		// Filtrado por tipos solicitados (estándar Jellyfin)
 		types := strings.Split(itemTypes, ",")
@@ -93,6 +110,16 @@ func GetItemImage(c *gin.Context) {
 	}
 
 	dir := filepath.Dir(item.Path)
+	imageType := c.Param("imageType")
+
+	if imageType == "Thumb" {
+		thumbPath := filepath.Join(dir, "thumb.jpg")
+		if _, err := os.Stat(thumbPath); err == nil {
+			c.File(thumbPath)
+			return
+		}
+	}
+
 	imgPath := findImage(dir, item.Name)
 	if imgPath != "" {
 		c.File(imgPath)
@@ -174,10 +201,19 @@ func GetNextUp(c *gin.Context) {
 // GetLatestItems devuelve los últimos archivos añadidos.
 func GetLatestItems(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("Limit", "20"))
+	if limit == 20 && c.Query("limit") != "" {
+		limit, _ = strconv.Atoi(c.Query("limit"))
+	}
 	parentId := c.Query("ParentId")
+	if parentId == "" {
+		parentId = c.Query("parentId")
+	}
 	itemTypes := c.Query("IncludeItemTypes")
+	if itemTypes == "" {
+		itemTypes = c.Query("includeItemTypes")
+	}
 	
-	query := database.DB.Order("created_at desc").Limit(limit)
+	query := database.DB.Model(&models.MediaItem{})
 
 	if parentId == "12345678-1234-1234-1234-123456789012" {
 		query = query.Where("type = ?", "Movie")
@@ -189,7 +225,7 @@ func GetLatestItems(c *gin.Context) {
 	}
 
 	var dbItems []models.MediaItem
-	query.Find(&dbItems)
+	query.Order("created_at desc").Limit(limit).Find(&dbItems)
 
 	respItems := []BaseItemDto{}
 	for _, item := range dbItems {
@@ -210,16 +246,32 @@ func GetSuggestions(c *gin.Context) {
 
 // mapToDto convierte un modelo MediaItem a BaseItemDto.
 func mapToDto(item models.MediaItem) BaseItemDto {
+	parentId := ""
+	if item.Type == "Movie" {
+		parentId = "12345678-1234-1234-1234-123456789012"
+	} else if item.Type == "Episode" {
+		parentId = "22345678-1234-1234-1234-123456789012"
+	}
+
+	isFolder := item.Type == "Series" || item.Type == "Season" || item.Type == "CollectionFolder" || item.Type == "Folder"
+
 	dto := BaseItemDto{
-		Name:       item.Name,
-		Id:         item.ID,
-		ServerId:   ServerUUID,
-		Type:       item.Type,
-		MediaType:  "Video",
-		IsFolder:   false,
-		PlayAccess: "Full",
-		Path:       item.Path,
-		ImageTags:  make(map[string]string),
+		Name:                    item.Name,
+		Id:                      item.ID,
+		ServerId:                ServerUUID,
+		Type:                    item.Type,
+		MediaType:               "Video",
+		IsFolder:                isFolder,
+		PlayAccess:              "Full",
+		Path:                    item.Path,
+		ParentId:                parentId,
+		RunTimeTicks:            item.RunTimeTicks,
+		Width:                   item.Width,
+		Height:                  item.Height,
+		ProductionYear:          item.ProductionYear,
+		PrimaryImageAspectRatio: 0.66,
+		Overview:                item.Overview,
+		ImageTags:               make(map[string]string),
 		UserData: UserItemDataDto{
 			PlaybackPositionTicks: 0,
 			PlayCount:             0,
@@ -231,6 +283,10 @@ func mapToDto(item models.MediaItem) BaseItemDto {
 	dir := filepath.Dir(item.Path)
 	if hasImage(dir, item.Name) {
 		dto.ImageTags["Primary"] = "fixed-tag"
+	}
+	// Añadir Thumbnail si existe
+	if _, err := os.Stat(filepath.Join(dir, "thumb.jpg")); err == nil {
+		dto.ImageTags["Thumb"] = "thumb-tag"
 	}
 
 	return dto

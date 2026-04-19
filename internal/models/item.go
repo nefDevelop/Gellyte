@@ -14,6 +14,7 @@ type MediaItem struct {
 	Path           string    `json:"Path"`
 	Type           string    `gorm:"index" json:"Type"` // Movie, Series, Episode, Folder
 	ParentID       string    `gorm:"index" json:"ParentId,omitempty"`
+	Overview       string    `json:"Overview,omitempty"`
 	RunTimeTicks   int64     `json:"RunTimeTicks,omitempty"`
 	ProductionYear int       `json:"ProductionYear,omitempty"`
 	Container      string    `json:"Container,omitempty"`

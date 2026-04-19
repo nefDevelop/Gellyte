@@ -12,7 +12,8 @@ import (
 )
 
 // WatchFolder inicia el monitoreo de una carpeta de medios en tiempo real.
-func WatchFolder(path string) {
+func WatchFolder(path string, libType string) {
+	path = filepath.Clean(path)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal("Error creando el monitor de archivos: ", err)
@@ -36,9 +37,18 @@ func WatchFolder(path string) {
 				if !ok {
 					return
 				}
-				// Solo nos interesan creaciones o modificaciones de archivos de video
+				// Crear/Modificar
 				if event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Write == fsnotify.Write {
-					processFile(event.Name)
+					info, err := os.Stat(event.Name)
+					if err == nil {
+						if info.IsDir() {
+							processDirectory(event.Name, libType, path)
+							// Escaneo recursivo inicial de la nueva carpeta
+							scanInitial(event.Name, libType, path)
+						} else {
+							processFile(event.Name, libType, path)
+						}
+					}
 				} else if event.Op&fsnotify.Remove == fsnotify.Remove {
 					removeItem(event.Name)
 				}
@@ -58,24 +68,29 @@ func WatchFolder(path string) {
 	
 	// Escaneo inicial rápido
 	log.Println("Iniciando escaneo inicial de:", path)
-	scanInitial(path)
+	scanInitial(path, libType, path)
 
-	log.Printf("Monitor de biblioteca activo en: %s (Bajo consumo de RAM)", path)
+	log.Printf("Monitor de biblioteca activo en: %s (Tipo: %s)", path, libType)
 	<-done
 }
 
 // scanInitial recorre la carpeta una vez al inicio.
-func scanInitial(root string) {
+func scanInitial(root string, libType string, libRoot string) {
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() {
-			processFile(path)
+		if err == nil {
+			if info.IsDir() {
+				processDirectory(path, libType, libRoot)
+			} else {
+				processFile(path, libType, libRoot)
+			}
 		}
 		return nil
 	})
 }
 
 // processFile añade o actualiza un archivo en la base de datos si es video.
-func processFile(path string) {
+func processFile(path string, libType string, libRoot string) {
+	path = filepath.Clean(path)
 	if !isVideoFile(path) {
 		return
 	}
@@ -88,25 +103,105 @@ func processFile(path string) {
 	
 	if err != nil { // No existe, crear uno nuevo
 		itemType := "Movie"
-		if strings.Contains(strings.ToLower(path), "/series/") {
+		parentId := "12345678-1234-1234-1234-123456789012" // Default Movies Library
+
+		if libType == "series" {
 			itemType = "Episode"
+			// Intentar encontrar el ParentId (Season o Series)
+			parentPath := filepath.Dir(path)
+			var parent models.MediaItem
+			if err := database.DB.Where("path = ?", parentPath).First(&parent).Error; err == nil {
+				parentId = parent.ID
+			} else {
+				// Si no hay carpeta padre en DB, usamos la biblioteca de Series por defecto
+				parentId = "22345678-1234-1234-1234-123456789012"
+			}
 		}
 
 		newItem := models.MediaItem{
 			Name:      strings.TrimSuffix(name, ext),
 			Path:      path,
 			Type:      itemType,
+			ParentID:  parentId,
 			Container: strings.TrimPrefix(ext, "."),
 		}
+
+		// Extraer metadatos técnicos con ffprobe
+		meta, err := GetVideoMetadata(path)
+		if err == nil {
+			newItem.RunTimeTicks = meta.DurationTicks
+			newItem.Width = meta.Width
+			newItem.Height = meta.Height
+			newItem.Bitrate = meta.Bitrate
+			newItem.VideoCodec = meta.VideoCodec
+		}
+
+		// Buscar metadatos en archivo .nfo
+		nfoPath := strings.TrimSuffix(path, ext) + ".nfo"
+		if nfo, err := ParseMovieNfo(nfoPath); err == nil {
+			newItem.Name = nfo.Title
+			newItem.ProductionYear = nfo.Year
+			newItem.Overview = nfo.Plot
+		}
+
+		// Generar miniatura si no existe una imagen local
+		dir := filepath.Dir(path)
+		thumbPath := filepath.Join(dir, "thumb.jpg")
+		if _, err := os.Stat(thumbPath); os.IsNotExist(err) && newItem.Width > 0 {
+			GenerateThumbnail(path, thumbPath)
+		}
+
 		database.DB.Create(&newItem)
-		log.Printf("[Library] Nuevo archivo detectado: %s", name)
 	}
+}
+
+// processDirectory maneja la creación de carpetas (Series/Seasons)
+func processDirectory(path string, libType string, libRoot string) {
+	path = filepath.Clean(path)
+	if path == libRoot {
+		return
+	}
+
+	var item models.MediaItem
+	err := database.DB.Where("path = ?", path).First(&item).Error
+	if err == nil {
+		return // Ya existe
+	}
+
+	name := filepath.Base(path)
+	itemType := "Folder"
+	parentId := ""
+
+	if libType == "series" {
+		parentPath := filepath.Dir(path)
+		if parentPath == libRoot || parentPath == "." {
+			itemType = "Series"
+			parentId = "22345678-1234-1234-1234-123456789012"
+		} else {
+			itemType = "Season"
+			// Buscar la Serie padre
+			var seriesParent models.MediaItem
+			if err := database.DB.Where("path = ?", parentPath).First(&seriesParent).Error; err == nil {
+				parentId = seriesParent.ID
+			}
+		}
+	}
+
+	newItem := models.MediaItem{
+		Name:     name,
+		Path:     path,
+		Type:     itemType,
+		ParentID: parentId,
+	}
+
+	database.DB.Create(&newItem)
+	log.Printf("[Library] Carpeta detectada: %s (%s)", name, itemType)
 }
 
 // removeItem elimina un archivo de la base de datos si es borrado del disco.
 func removeItem(path string) {
 	database.DB.Where("path = ?", path).Delete(&models.MediaItem{})
-	log.Printf("[Library] Archivo eliminado: %s", filepath.Base(path))
+	log.Printf("[Library] Item eliminado: %s", filepath.Base(path))
 }
 
 func isVideoFile(path string) bool {

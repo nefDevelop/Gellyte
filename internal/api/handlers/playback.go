@@ -48,6 +48,8 @@ func GetPlaybackInfo(c *gin.Context) {
 				"SupportsTranscoding": true, // Decimos que sí para que la app lo considere
 				"SupportsResume":      true,
 				"DirectStreamUrl":     streamUrl,
+				"RunTimeTicks":        item.RunTimeTicks,
+				"Bitrate":             item.Bitrate,
 				"MediaStreams": []gin.H{
 					{
 						"Type": "Video",

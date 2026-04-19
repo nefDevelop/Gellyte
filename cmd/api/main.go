@@ -29,8 +29,8 @@ func main() {
 		ssdp.Start()
 	}()
 
-	go library.WatchFolder("./media/peliculas")
-	go library.WatchFolder("./media/series")
+	go library.WatchFolder("./media/peliculas", "movies")
+	go library.WatchFolder("./media/series", "series")
 
 	r := gin.Default()
 

@@ -190,6 +190,9 @@ type BaseItemDto struct {
 	UserData                UserItemDataDto        `json:"UserData"`
 	CollectionType          string                 `json:"CollectionType"`
 	Path                    string                 `json:"Path"`
+	ParentId                string                 `json:"ParentId"`
+	Width                   int                    `json:"Width,omitempty"`
+	Height                  int                    `json:"Height,omitempty"`
 	Overview                string                 `json:"Overview"`
 	RunTimeTicks            int64                  `json:"RunTimeTicks"`
 	ProductionYear          int                    `json:"ProductionYear"`

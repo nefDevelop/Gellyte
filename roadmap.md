@@ -42,9 +42,9 @@
     - [ ] Generación de segmentos dinámicos con FFmpeg.
 - [ ] **Hito 7: Automatización y Escaneo Profundo**
     - [x] Escáner de sistema de archivos (fsnotify).
-    - [ ] Extracción de metadatos técnicos avanzados (ffprobe: duración, resolución, streams).
-    - [ ] Soporte básico para archivos `.nfo` locales.
-    - [ ] Generación de capturas de pantalla (Thumbnails).
+    - [x] Extracción de metadatos técnicos avanzados (ffprobe: duración, resolución, streams).
+    - [x] Soporte básico para archivos `.nfo` locales.
+    - [x] Generación de capturas de pantalla (Thumbnails).
 
 - [ ] **Hito 8: Experiencia de Usuario y Home Screen**
     - [x] Endpoint `/UserViews` para compatibilidad con Streamyfin.
@@ -53,10 +53,10 @@
     - [ ] Lógica de "Next Up" para series.
     - [ ] Búsqueda global (`/Search/Hints`).
 
-- [ ] **Hito 9: Jerarquía de Series (TV Shows)**
-    - [ ] Detección inteligente de Estructura: Serie -> Temporada -> Episodio.
-    - [ ] Endpoints `/Shows/:id/Seasons` y `/Seasons/:id/Episodes`.
-    - [ ] Agrupamiento en la interfaz de usuario.
+- [x] **Hito 9: Jerarquía de Series (TV Shows)**
+    - [x] Detección inteligente de Estructura: Serie -> Temporada -> Episodio.
+    - [x] Endpoints `/Shows/:id/Seasons` y `/Seasons/:id/Episodes`.
+    - [x] Agrupamiento en la interfaz de usuario.
 
 - [ ] **Hito 10: WebSocket y Notificaciones en Tiempo Real**
     - [x] Handshake estándar compatible con RFC 6455.
