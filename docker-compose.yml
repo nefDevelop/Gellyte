@@ -1,20 +1,18 @@
-version: "3.8"
-
 services:
   gellyte:
-    build: .
-    container_name: gellyte-server
-    environment:
-      - GIN_MODE=release
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gellyte
     ports:
-      - "8080:8081" # Map host port 8080 to container port 8081
+      "8081:8081"
     volumes:
-      # Base de datos persistente
-      - ./gellyte.db:/root/gellyte.db
-      # Tus películas (mapea tu carpeta real aquí si prefieres)
-      - ./media/peliculas:/root/media/peliculas
+      # Mount your media libraries
+      - /path/to/your/movies:/app/media/peliculas
+      - /path/to/your/series:/app/media/series
+      # Persistence for the database
+      - ./config:/app/config
+    environment:
+      - TZ=Europe/Madrid
+      - DB_PATH=/app/config/gellyte.db
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M

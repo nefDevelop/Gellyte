@@ -13,25 +13,19 @@ import (
 )
 
 // GetVirtualFolders godoc
-// @Summary Listar carpetas virtuales
-// @Description Devuelve las bibliotecas (Películas, Series, etc.) configuradas.
-// @Tags Library
-// @Produce json
-// @Success 200 {object} []map[string]interface{}
-// @Router /Library/VirtualFolders [get]
 func GetVirtualFolders(c *gin.Context) {
 	folders := []gin.H{
 		{
 			"Name":           "Películas",
 			"Locations":      []string{"./media/peliculas"},
 			"CollectionType": "movies",
-			"ItemId":         "12345678-1234-1234-1234-123456789012",
+			"ItemId":         MoviesLibraryID,
 		},
 		{
 			"Name":           "Series",
 			"Locations":      []string{"./media/series"},
 			"CollectionType": "tvshows",
-			"ItemId":         "22345678-1234-1234-1234-123456789012",
+			"ItemId":         SeriesLibraryID,
 		},
 	}
 	c.JSON(http.StatusOK, folders)
@@ -79,9 +73,12 @@ func GetItems(c *gin.Context) {
 	}
 
 	// Filtrado básico por ParentId (ID de la carpeta virtual o carpeta física)
-	if parentId == "12345678123412341234123456789012" {
+	moviesLibNorm := strings.ReplaceAll(MoviesLibraryID, "-", "")
+	seriesLibNorm := strings.ReplaceAll(SeriesLibraryID, "-", "")
+
+	if parentId == moviesLibNorm {
 		query = query.Where("type = ?", "Movie")
-	} else if parentId == "22345678123412341234123456789012" {
+	} else if parentId == seriesLibNorm {
 		query = query.Where("type = ?", "Series")
 	} else if parentId != "" {
 		// Navegación jerárquica: devolvemos los hijos directos del ParentId
@@ -100,7 +97,7 @@ func GetItems(c *gin.Context) {
 
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+		userId = AdminUUID
 	}
 
 	// Convertimos a BaseItemDto para cumplir con el esquema Jellyfin
@@ -208,23 +205,61 @@ func GetSpecialFeatures(c *gin.Context) {
 
 // GetAncestors handles requests for item ancestors.
 func GetAncestors(c *gin.Context) {
-	// For now, return an empty result as ancestors are not fully implemented.
-	c.JSON(http.StatusOK, []BaseItemDto{})
+	id := c.Param("id")
+	var item models.MediaItem
+	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+		c.JSON(http.StatusOK, []BaseItemDto{})
+		return
+	}
+
+	userId := c.GetString("UserID")
+	if userId == "" {
+		userId = AdminUUID
+	}
+
+	ancestors := []BaseItemDto{}
+	
+	// Add parent if exists
+	if item.ParentID != "" {
+		var parent models.MediaItem
+		if err := database.DB.Where("id = ?", item.ParentID).First(&parent).Error; err == nil {
+			ancestors = append(ancestors, mapToDto(parent, userId))
+		}
+	}
+
+	c.JSON(http.StatusOK, ancestors)
 }
 
 // GetSimilarItems handles requests for similar items.
 func GetSimilarItems(c *gin.Context) {
-	// For now, return an empty result as similar items logic is not implemented.
+	id := c.Param("id")
+	var item models.MediaItem
+	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"Items": []BaseItemDto{}, "TotalRecordCount": 0})
+		return
+	}
+
+	var similar []models.MediaItem
+	database.DB.Where("type = ? AND id != ?", item.Type, item.ID).Limit(12).Find(&similar)
+
+	userId := c.GetString("UserID")
+	if userId == "" {
+		userId = AdminUUID
+	}
+
+	respItems := []BaseItemDto{}
+	for _, s := range similar {
+		respItems = append(respItems, mapToDto(s, userId))
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"Items":            []BaseItemDto{},
-		"TotalRecordCount": 0,
+		"Items":            respItems,
+		"TotalRecordCount": len(respItems),
 	})
 }
 
 // GetMediaSegments handles requests for media segments.
 func GetMediaSegments(c *gin.Context) {
-	// For now, return an empty result as media segments are not implemented.
-	// This endpoint is often used for trickplay or other advanced streaming features.
 	c.JSON(http.StatusOK, gin.H{
 		"Items":            []BaseItemDto{},
 		"TotalRecordCount": 0,
@@ -242,22 +277,24 @@ func GetItemDetails(c *gin.Context) {
 	}
 
 	idNormalized := strings.ReplaceAll(id, "-", "")
+	moviesLibNorm := strings.ReplaceAll(MoviesLibraryID, "-", "")
+	seriesLibNorm := strings.ReplaceAll(SeriesLibraryID, "-", "")
 
 	// Manejo de carpetas virtuales (hardcoded por ahora)
-	if idNormalized == "12345678123412341234123456789012" {
+	if idNormalized == moviesLibNorm {
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Películas",
-			"Id":             id,
+			"Id":             MoviesLibraryID,
 			"Type":           "CollectionFolder",
 			"CollectionType": "movies",
 			"IsFolder":       true,
 		})
 		return
 	}
-	if idNormalized == "22345678123412341234123456789012" {
+	if idNormalized == seriesLibNorm {
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Series",
-			"Id":             id,
+			"Id":             SeriesLibraryID,
 			"Type":           "CollectionFolder",
 			"CollectionType": "tvshows",
 			"IsFolder":       true,
@@ -273,7 +310,7 @@ func GetItemDetails(c *gin.Context) {
 
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+		userId = AdminUUID
 	}
 
 	c.JSON(http.StatusOK, mapToDto(item, userId))
@@ -283,7 +320,7 @@ func GetItemDetails(c *gin.Context) {
 func GetNextUp(c *gin.Context) {
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+		userId = AdminUUID
 	}
 
 	// 1. Encontrar los últimos episodios reproducidos de cada serie
@@ -315,7 +352,6 @@ func GetNextUp(c *gin.Context) {
 		seenSeries[seriesId] = true
 
 		// 2. Buscar el "siguiente" episodio en la base de datos
-		// El siguiente episodio debería estar en la misma temporada (ParentID) y tener un nombre alfabéticamente posterior
 		var nextEpisode models.MediaItem
 		err := database.DB.Where("parent_id = ? AND name > ? AND type = ?", lastEpisode.ParentID, lastEpisode.Name, "Episode").Order("name asc").First(&nextEpisode).Error
 
@@ -326,8 +362,6 @@ func GetNextUp(c *gin.Context) {
 			if !nextData.Played {
 				nextUpItems = append(nextUpItems, mapToDto(nextEpisode, userId))
 			}
-		} else {
-			// TODO: Si no hay más en esta temporada, buscar el primer episodio de la siguiente temporada
 		}
 	}
 
@@ -355,9 +389,12 @@ func GetLatestItems(c *gin.Context) {
 
 	query := database.DB.Model(&models.MediaItem{})
 
-	if parentId == "12345678-1234-1234-1234-123456789012" {
+	moviesLibNorm := strings.ReplaceAll(MoviesLibraryID, "-", "")
+	seriesLibNorm := strings.ReplaceAll(SeriesLibraryID, "-", "")
+
+	if parentId == moviesLibNorm {
 		query = query.Where("type = ?", "Movie")
-	} else if parentId == "22345678-1234-1234-1234-123456789012" {
+	} else if parentId == seriesLibNorm {
 		query = query.Where("type = ?", "Episode")
 	} else if itemTypes != "" {
 		types := strings.Split(itemTypes, ",")
@@ -369,7 +406,7 @@ func GetLatestItems(c *gin.Context) {
 
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+		userId = AdminUUID
 	}
 
 	respItems := []BaseItemDto{}
@@ -384,7 +421,7 @@ func GetLatestItems(c *gin.Context) {
 func GetResumeItems(c *gin.Context) {
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+		userId = AdminUUID
 	}
 
 	var userDatas []models.UserItemData
@@ -404,13 +441,11 @@ func GetResumeItems(c *gin.Context) {
 	})
 }
 
-// GetSuggestions devuelve sugerencias para el usuario (usamos los últimos añadidos por ahora).
+// GetSuggestions devuelve sugerencias para el usuario.
 func GetSuggestions(c *gin.Context) {
-	// El cliente envía el userId como parámetro de consulta.
 	userId := c.Query("userId")
 	if userId == "" {
-		// Si no se especifica, usamos el admin como fallback, igual que en otros handlers.
-		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+		userId = AdminUUID
 	}
 
 	var items []models.MediaItem
@@ -431,9 +466,9 @@ func GetSuggestions(c *gin.Context) {
 func mapToDto(item models.MediaItem, userId string) BaseItemDto {
 	parentId := ""
 	if item.Type == "Movie" {
-		parentId = "12345678-1234-1234-1234-123456789012"
+		parentId = MoviesLibraryID
 	} else if item.Type == "Episode" {
-		parentId = "22345678-1234-1234-1234-123456789012"
+		parentId = SeriesLibraryID
 	}
 
 	isFolder := item.Type == "Series" || item.Type == "Season" || item.Type == "CollectionFolder" || item.Type == "Folder"
@@ -445,7 +480,6 @@ func mapToDto(item models.MediaItem, userId string) BaseItemDto {
 		Played:                false,
 	}
 
-	// Cargar datos reales del usuario si existe sesión
 	if userId != "" {
 		var dbUserData models.UserItemData
 		result := database.DB.Where("user_id = ? AND media_item_id = ?", userId, item.ID).Find(&dbUserData)
@@ -481,13 +515,10 @@ func mapToDto(item models.MediaItem, userId string) BaseItemDto {
 	if hasImage(dir, item.Name) {
 		dto.ImageTags["Primary"] = "fixed-tag"
 	}
-	// Añadir Thumbnail si existe
 	if _, err := os.Stat(filepath.Join(dir, "thumb.jpg")); err == nil {
 		dto.ImageTags["Thumb"] = "thumb-tag"
 	}
 
-	// Para que la interfaz web de Jellyfin muestre el tiempo, resolución y otros badges,
-	// debemos incluir la información técnica en el arreglo MediaSources.
 	if item.RunTimeTicks > 0 {
 		dto.MediaSources = []interface{}{
 			gin.H{

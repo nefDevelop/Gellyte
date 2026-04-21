@@ -1,37 +1,37 @@
-# Etapa 1: Compilación
-FROM golang:1.22-alpine AS builder
+# --- Stage 1: Build the Go binary ---
+FROM golang:1.24-alpine AS builder
 
-# Instalar dependencias de compilación para SQLite
-RUN apk add --no-cache gcc musl-dev
+# Install build dependencies
+RUN apk add --no-cache git gcc musl-dev
 
 WORKDIR /app
 
-# Copiar dependencias
+# Copy and download dependencies
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copiar el código fuente
+# Copy the source code
 COPY . .
 
-# Compilar con flags -s -w (Stripped binary)
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o gellyte cmd/api/main.go
+# Build the application
+RUN CGO_ENABLED=1 GOOS=linux go build -o gellyte ./cmd/api/main.go
 
-# Etapa 2: Imagen Final
-FROM alpine:latest
+# --- Stage 2: Final image ---
+FROM alpine:3.19
 
-# Instalar dependencias necesarias (FFmpeg para Fase 2)
+# Install runtime dependencies: FFmpeg and SSL certificates
 RUN apk add --no-cache ffmpeg ca-certificates tzdata
 
-WORKDIR /root/
+WORKDIR /app
 
-# Copiar binario y docs
+# Copy the binary from the builder stage
 COPY --from=builder /app/gellyte .
-COPY --from=builder /app/docs ./docs
 
-# Crear estructura de carpetas
-RUN mkdir -p media/peliculas
+# Create media and config directories
+RUN mkdir -p /app/media/peliculas /app/media/series /app/config
 
-EXPOSE 8080
+# Expose the port
+EXPOSE 8081
 
-# Ejecutar
+# Command to run the application
 CMD ["./gellyte"]

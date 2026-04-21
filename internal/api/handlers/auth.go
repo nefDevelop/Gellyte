@@ -12,12 +12,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const ServerUUID = "83e4c49d-9273-4556-9a5d-4952011702f3"
-const AdminUUID = "53896590-3b41-46a4-9591-96b054a8e3f6"
+const (
+	ServerUUID = "83e4c49d-9273-4556-9a5d-4952011702f3"
+	AdminUUID  = "53896590-3b41-46a4-9591-96b054a8e3f6"
+	// IDs de librerías virtuales
+	MoviesLibraryID = "12345678-1234-1234-1234-123456789012"
+	SeriesLibraryID = "22345678-1234-1234-1234-123456789012"
+)
 
 type AuthRequest struct {
-	Username string `json:"Username" json:"username"`
-	Pw       string `json:"Pw" json:"pw"`
+	Username string `json:"Username"`
+	Pw       string `json:"Pw"`
 }
 
 func GetPublicUsers(c *gin.Context) {
