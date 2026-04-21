@@ -5,20 +5,12 @@ import (
 	"time"
 
 	"github.com/gellyte/gellyte/internal/api/middleware"
-	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gin-gonic/gin"
 )
 
 // GetSessions godoc
-// @Summary Obtener lista de sesiones
-// @Description Devuelve una lista de las sesiones activas en el servidor.
-// @Tags Session
-// @Produce json
-// @Success 200 {array} SessionInfoDto
-// @Router /Sessions [get]
-func GetSessions(c *gin.Context) {
-	// Intentamos obtener la info de auth del middleware
+func (h *Handler) GetSessions(c *gin.Context) {
 	val, exists := c.Get("auth")
 	if !exists {
 		c.JSON(http.StatusOK, []SessionInfoDto{})
@@ -31,13 +23,14 @@ func GetSessions(c *gin.Context) {
 		return
 	}
 
-	// Buscamos al usuario admin por defecto o el que corresponda al token si hubiera lógica de tokens real
+	users, _ := h.AuthService.GetAllUsers()
 	var user models.User
-	database.DB.Where("username = ?", "admin").First(&user)
+	if len(users) > 0 {
+		user = users[0] // admin or first user
+	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	// Creamos una sesión "fake" pero realista basada en la petición actual
 	session := SessionInfoDto{
 		PlayState: PlayerStateInfo{
 			CanSeek:     true,

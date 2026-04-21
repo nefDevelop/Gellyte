@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/models"
+	"github.com/gellyte/gellyte/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
 // GetVirtualFolders godoc
-func GetVirtualFolders(c *gin.Context) {
+func (h *Handler) GetVirtualFolders(c *gin.Context) {
 	folders := []gin.H{
 		{
 			"Name":           "Películas",
@@ -31,7 +31,7 @@ func GetVirtualFolders(c *gin.Context) {
 	c.JSON(http.StatusOK, folders)
 }
 
-func GetItems(c *gin.Context) {
+func (h *Handler) GetItems(c *gin.Context) {
 	startIndex, _ := strconv.Atoi(c.DefaultQuery("StartIndex", "0"))
 	if startIndex == 0 {
 		startIndex, _ = strconv.Atoi(c.Query("startIndex"))
@@ -46,64 +46,63 @@ func GetItems(c *gin.Context) {
 		parentId = c.Query("parentId")
 	}
 	parentId = strings.ReplaceAll(parentId, "-", "") // Normalizar UUIDs de Jellyfin
-	itemTypes := c.Query("IncludeItemTypes")
-	if itemTypes == "" {
-		itemTypes = c.Query("includeItemTypes")
+	itemTypesStr := c.Query("IncludeItemTypes")
+	if itemTypesStr == "" {
+		itemTypesStr = c.Query("includeItemTypes")
 	}
+	var itemTypes []string
+	if itemTypesStr != "" {
+		itemTypes = strings.Split(itemTypesStr, ",")
+	}
+
 	searchTerm := c.Query("SearchTerm")
 	if searchTerm == "" {
 		searchTerm = c.Query("searchTerm")
 	}
-	ids := c.Query("ids")
-	if ids == "" {
-		ids = c.Query("Ids")
+	idsStr := c.Query("ids")
+	if idsStr == "" {
+		idsStr = c.Query("Ids")
+	}
+	var ids []string
+	if idsStr != "" {
+		ids = strings.Split(idsStr, ",")
 	}
 
-	query := database.DB.Model(&models.MediaItem{})
-
-	// Filtrado directo por IDs específicos (prioritario para el cliente web)
-	if ids != "" {
-		idList := strings.Split(ids, ",")
-		query = query.Where("id IN ?", idList)
-	}
-
-	// Búsqueda por nombre
-	if searchTerm != "" {
-		query = query.Where("name LIKE ?", "%"+searchTerm+"%")
-	}
-
-	// Filtrado básico por ParentId (ID de la carpeta virtual o carpeta física)
+	// Lógica de carpetas virtuales trasladada del handler al servicio/params
 	moviesLibNorm := strings.ReplaceAll(MoviesLibraryID, "-", "")
 	seriesLibNorm := strings.ReplaceAll(SeriesLibraryID, "-", "")
 
+	actualParentID := parentId
 	if parentId == moviesLibNorm {
-		query = query.Where("type = ?", "Movie")
+		itemTypes = []string{"Movie"}
+		actualParentID = ""
 	} else if parentId == seriesLibNorm {
-		query = query.Where("type = ?", "Series")
-	} else if parentId != "" {
-		// Navegación jerárquica: devolvemos los hijos directos del ParentId
-		query = query.Where("parent_id = ?", parentId)
-	} else if itemTypes != "" {
-		// Filtrado por tipos solicitados (estándar Jellyfin)
-		types := strings.Split(itemTypes, ",")
-		query = query.Where("type IN ?", types)
+		itemTypes = []string{"Series"}
+		actualParentID = ""
 	}
 
-	var dbItems []models.MediaItem
-	var total int64
+	dbItems, total, err := h.LibraryService.GetItems(services.GetItemsParams{
+		ParentID:   actualParentID,
+		ItemTypes:  itemTypes,
+		SearchTerm: searchTerm,
+		IDs:        ids,
+		StartIndex: startIndex,
+		Limit:      limit,
+	})
 
-	query.Count(&total)
-	query.Offset(startIndex).Limit(limit).Find(&dbItems)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	userId := c.GetString("UserID")
 	if userId == "" {
 		userId = AdminUUID
 	}
 
-	// Convertimos a BaseItemDto para cumplir con el esquema Jellyfin
 	respItems := []BaseItemDto{}
 	for _, item := range dbItems {
-		respItems = append(respItems, mapToDto(item, userId))
+		respItems = append(respItems, h.mapToDto(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -113,17 +112,16 @@ func GetItems(c *gin.Context) {
 }
 
 // GetItemImage devuelve la imagen asociada a un item.
-func GetItemImage(c *gin.Context) {
+func (h *Handler) GetItemImage(c *gin.Context) {
 	id := c.Param("id")
 
-	// Evitar consultas a la base de datos si el cliente envía IDs inválidos de JavaScript
 	if id == "" || id == "undefined" || id == "null" {
 		c.Status(http.StatusNotFound)
 		return
 	}
 
-	var item models.MediaItem
-	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+	item, err := h.LibraryService.GetItem(id)
+	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
@@ -148,11 +146,7 @@ func GetItemImage(c *gin.Context) {
 	c.Status(http.StatusNotFound)
 }
 
-// Helpers para imágenes
-func hasImage(dir, itemName string) bool {
-	return findImage(dir, itemName) != ""
-}
-
+// Helpers para imágenes (pueden seguir siendo internos o movidos a utils)
 func findImage(dir, itemName string) string {
 	names := []string{"poster.jpg", "folder.jpg", "cover.jpg", itemName + ".jpg", "poster.png", "folder.png"}
 	for _, n := range names {
@@ -164,16 +158,20 @@ func findImage(dir, itemName string) string {
 	return ""
 }
 
+func hasImage(dir, itemName string) bool {
+	return findImage(dir, itemName) != ""
+}
+
 // GetUserPrimaryImage handles requests for user primary images.
-func GetUserPrimaryImage(c *gin.Context) {
+func (h *Handler) GetUserPrimaryImage(c *gin.Context) {
 	userId := c.Param("id")
 	if userId == "" {
 		c.Status(http.StatusNotFound)
 		return
 	}
 
-	var user models.User
-	if err := database.DB.Where("id = ?", userId).First(&user).Error; err != nil {
+	user, err := h.AuthService.GetUserByID(userId)
+	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
@@ -195,8 +193,7 @@ func GetUserPrimaryImage(c *gin.Context) {
 }
 
 // GetSpecialFeatures handles requests for special features.
-func GetSpecialFeatures(c *gin.Context) {
-	// For now, return an empty result as special features are not implemented.
+func (h *Handler) GetSpecialFeatures(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Items":            []BaseItemDto{},
 		"TotalRecordCount": 0,
@@ -204,10 +201,10 @@ func GetSpecialFeatures(c *gin.Context) {
 }
 
 // GetAncestors handles requests for item ancestors.
-func GetAncestors(c *gin.Context) {
+func (h *Handler) GetAncestors(c *gin.Context) {
 	id := c.Param("id")
-	var item models.MediaItem
-	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+	item, err := h.LibraryService.GetItem(id)
+	if err != nil {
 		c.JSON(http.StatusOK, []BaseItemDto{})
 		return
 	}
@@ -219,11 +216,9 @@ func GetAncestors(c *gin.Context) {
 
 	ancestors := []BaseItemDto{}
 	
-	// Add parent if exists
 	if item.ParentID != "" {
-		var parent models.MediaItem
-		if err := database.DB.Where("id = ?", item.ParentID).First(&parent).Error; err == nil {
-			ancestors = append(ancestors, mapToDto(parent, userId))
+		if parent, err := h.LibraryService.GetItem(item.ParentID); err == nil {
+			ancestors = append(ancestors, h.mapToDto(*parent, userId))
 		}
 	}
 
@@ -231,16 +226,18 @@ func GetAncestors(c *gin.Context) {
 }
 
 // GetSimilarItems handles requests for similar items.
-func GetSimilarItems(c *gin.Context) {
+func (h *Handler) GetSimilarItems(c *gin.Context) {
 	id := c.Param("id")
-	var item models.MediaItem
-	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+	item, err := h.LibraryService.GetItem(id)
+	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"Items": []BaseItemDto{}, "TotalRecordCount": 0})
 		return
 	}
 
-	var similar []models.MediaItem
-	database.DB.Where("type = ? AND id != ?", item.Type, item.ID).Limit(12).Find(&similar)
+	similar, _, _ := h.LibraryService.GetItems(services.GetItemsParams{
+		ItemTypes: []string{item.Type},
+		Limit:     12,
+	})
 
 	userId := c.GetString("UserID")
 	if userId == "" {
@@ -249,7 +246,9 @@ func GetSimilarItems(c *gin.Context) {
 
 	respItems := []BaseItemDto{}
 	for _, s := range similar {
-		respItems = append(respItems, mapToDto(s, userId))
+		if s.ID != item.ID {
+			respItems = append(respItems, h.mapToDto(s, userId))
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -259,7 +258,7 @@ func GetSimilarItems(c *gin.Context) {
 }
 
 // GetMediaSegments handles requests for media segments.
-func GetMediaSegments(c *gin.Context) {
+func (h *Handler) GetMediaSegments(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Items":            []BaseItemDto{},
 		"TotalRecordCount": 0,
@@ -267,10 +266,9 @@ func GetMediaSegments(c *gin.Context) {
 }
 
 // GetItemDetails devuelve los detalles de un item específico o carpeta virtual.
-func GetItemDetails(c *gin.Context) {
+func (h *Handler) GetItemDetails(c *gin.Context) {
 	id := c.Param("id")
 
-	// Evitar IDs inválidos
 	if id == "" || id == "undefined" || id == "null" {
 		c.Status(http.StatusNotFound)
 		return
@@ -280,7 +278,6 @@ func GetItemDetails(c *gin.Context) {
 	moviesLibNorm := strings.ReplaceAll(MoviesLibraryID, "-", "")
 	seriesLibNorm := strings.ReplaceAll(SeriesLibraryID, "-", "")
 
-	// Manejo de carpetas virtuales (hardcoded por ahora)
 	if idNormalized == moviesLibNorm {
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Películas",
@@ -302,8 +299,8 @@ func GetItemDetails(c *gin.Context) {
 		return
 	}
 
-	var item models.MediaItem
-	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+	item, err := h.LibraryService.GetItem(id)
+	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
@@ -313,66 +310,35 @@ func GetItemDetails(c *gin.Context) {
 		userId = AdminUUID
 	}
 
-	c.JSON(http.StatusOK, mapToDto(item, userId))
+	c.JSON(http.StatusOK, h.mapToDto(*item, userId))
 }
 
 // GetNextUp devuelve el siguiente episodio disponible para ver en las series activas del usuario.
-func GetNextUp(c *gin.Context) {
+func (h *Handler) GetNextUp(c *gin.Context) {
 	userId := c.GetString("UserID")
 	if userId == "" {
 		userId = AdminUUID
 	}
 
-	// 1. Encontrar los últimos episodios reproducidos de cada serie
-	var playedEpisodes []models.UserItemData
-	database.DB.Where("user_id = ? AND played = ?", userId, true).Order("last_played_date desc").Find(&playedEpisodes)
+	nextUpItems, err := h.LibraryService.GetNextUpItems(userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-	seenSeries := make(map[string]bool)
-	var nextUpItems []BaseItemDto
-
-	for _, ud := range playedEpisodes {
-		var lastEpisode models.MediaItem
-		if err := database.DB.Where("id = ? AND type = ?", ud.MediaItemID, "Episode").First(&lastEpisode).Error; err != nil {
-			continue
-		}
-
-		// Obtener la serie padre para no repetir
-		seriesId := ""
-		var parent models.MediaItem
-		database.DB.Where("id = ?", lastEpisode.ParentID).First(&parent)
-		if parent.Type == "Season" {
-			seriesId = parent.ParentID
-		} else {
-			seriesId = parent.ID
-		}
-
-		if seenSeries[seriesId] {
-			continue
-		}
-		seenSeries[seriesId] = true
-
-		// 2. Buscar el "siguiente" episodio en la base de datos
-		var nextEpisode models.MediaItem
-		err := database.DB.Where("parent_id = ? AND name > ? AND type = ?", lastEpisode.ParentID, lastEpisode.Name, "Episode").Order("name asc").First(&nextEpisode).Error
-
-		if err == nil {
-			// Comprobar si el siguiente ya ha sido visto
-			var nextData models.UserItemData
-			database.DB.Where("user_id = ? AND media_item_id = ?", userId, nextEpisode.ID).First(&nextData)
-			if !nextData.Played {
-				nextUpItems = append(nextUpItems, mapToDto(nextEpisode, userId))
-			}
-		}
+	respItems := []BaseItemDto{}
+	for _, item := range nextUpItems {
+		respItems = append(respItems, h.mapToDto(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"Items":            nextUpItems,
-		"TotalRecordCount": len(nextUpItems),
+		"Items":            respItems,
+		"TotalRecordCount": len(respItems),
 	})
 }
 
 // GetLatestItems devuelve los últimos archivos añadidos.
-func GetLatestItems(c *gin.Context) {
+func (h *Handler) GetLatestItems(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("Limit", "20"))
 	if limit == 20 && c.Query("limit") != "" {
 		limit, _ = strconv.Atoi(c.Query("limit"))
@@ -381,28 +347,31 @@ func GetLatestItems(c *gin.Context) {
 	if parentId == "" {
 		parentId = c.Query("parentId")
 	}
-	parentId = strings.ReplaceAll(parentId, "-", "") // Normalizar UUIDs de Jellyfin
-	itemTypes := c.Query("IncludeItemTypes")
-	if itemTypes == "" {
-		itemTypes = c.Query("includeItemTypes")
-	}
+	parentId = strings.ReplaceAll(parentId, "-", "")
 
-	query := database.DB.Model(&models.MediaItem{})
+	itemTypesStr := c.Query("IncludeItemTypes")
+	if itemTypesStr == "" {
+		itemTypesStr = c.Query("includeItemTypes")
+	}
+	var itemTypes []string
+	if itemTypesStr != "" {
+		itemTypes = strings.Split(itemTypesStr, ",")
+	}
 
 	moviesLibNorm := strings.ReplaceAll(MoviesLibraryID, "-", "")
 	seriesLibNorm := strings.ReplaceAll(SeriesLibraryID, "-", "")
 
 	if parentId == moviesLibNorm {
-		query = query.Where("type = ?", "Movie")
+		itemTypes = []string{"Movie"}
 	} else if parentId == seriesLibNorm {
-		query = query.Where("type = ?", "Episode")
-	} else if itemTypes != "" {
-		types := strings.Split(itemTypes, ",")
-		query = query.Where("type IN ?", types)
+		itemTypes = []string{"Episode"}
 	}
 
-	var dbItems []models.MediaItem
-	query.Order("created_at desc").Limit(limit).Find(&dbItems)
+	dbItems, err := h.LibraryService.GetLatestItems(limit, itemTypes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	userId := c.GetString("UserID")
 	if userId == "" {
@@ -411,28 +380,28 @@ func GetLatestItems(c *gin.Context) {
 
 	respItems := []BaseItemDto{}
 	for _, item := range dbItems {
-		respItems = append(respItems, mapToDto(item, userId))
+		respItems = append(respItems, h.mapToDto(item, userId))
 	}
 
 	c.JSON(http.StatusOK, respItems)
 }
 
 // GetResumeItems devuelve items con progreso pendiente (Continuar viendo).
-func GetResumeItems(c *gin.Context) {
+func (h *Handler) GetResumeItems(c *gin.Context) {
 	userId := c.GetString("UserID")
 	if userId == "" {
 		userId = AdminUUID
 	}
 
-	var userDatas []models.UserItemData
-	database.DB.Where("user_id = ? AND playback_position_ticks > 0 AND played = false", userId).Order("last_played_date desc").Find(&userDatas)
+	items, err := h.LibraryService.GetResumeItems(userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	respItems := []BaseItemDto{}
-	for _, ud := range userDatas {
-		var item models.MediaItem
-		if err := database.DB.Where("id = ?", ud.MediaItemID).First(&item).Error; err == nil {
-			respItems = append(respItems, mapToDto(item, userId))
-		}
+	for _, item := range items {
+		respItems = append(respItems, h.mapToDto(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -442,18 +411,21 @@ func GetResumeItems(c *gin.Context) {
 }
 
 // GetSuggestions devuelve sugerencias para el usuario.
-func GetSuggestions(c *gin.Context) {
+func (h *Handler) GetSuggestions(c *gin.Context) {
 	userId := c.Query("userId")
 	if userId == "" {
 		userId = AdminUUID
 	}
 
-	var items []models.MediaItem
-	database.DB.Order("created_at desc").Limit(10).Find(&items)
+	items, err := h.LibraryService.GetLatestItems(10, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	respItems := []BaseItemDto{}
 	for _, item := range items {
-		respItems = append(respItems, mapToDto(item, userId))
+		respItems = append(respItems, h.mapToDto(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -463,7 +435,7 @@ func GetSuggestions(c *gin.Context) {
 }
 
 // mapToDto convierte un modelo MediaItem a BaseItemDto.
-func mapToDto(item models.MediaItem, userId string) BaseItemDto {
+func (h *Handler) mapToDto(item models.MediaItem, userId string) BaseItemDto {
 	parentId := ""
 	if item.Type == "Movie" {
 		parentId = MoviesLibraryID
@@ -481,9 +453,7 @@ func mapToDto(item models.MediaItem, userId string) BaseItemDto {
 	}
 
 	if userId != "" {
-		var dbUserData models.UserItemData
-		result := database.DB.Where("user_id = ? AND media_item_id = ?", userId, item.ID).Find(&dbUserData)
-		if result.Error == nil && result.RowsAffected > 0 {
+		if dbUserData, err := h.LibraryService.GetUserData(userId, item.ID); err == nil {
 			userData.PlaybackPositionTicks = dbUserData.PlaybackPositionTicks
 			userData.PlayCount = dbUserData.PlayCount
 			userData.IsFavorite = dbUserData.IsFavorite

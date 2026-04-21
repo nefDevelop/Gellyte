@@ -65,6 +65,38 @@
 
 ---
 
+---
+
+### Fase 3: Arquitectura Enterprise y Funciones Avanzadas (Gellyte v2)
+*Objetivo: Convertir el MVP en un producto robusto, seguro, mantenible y listo para competir.*
+
+- [ ] **Hito 11: Arquitectura Limpia (Clean Architecture)**
+    - [ ] Refactorización a capas: Controladores (Handlers) -> Casos de Uso (Services) -> Repositorios (DB).
+    - [ ] Módulo `Auth`: Extraer validación de credenciales y generación de token al servicio.
+    - [ ] Módulo `Library`: Separar la lógica compleja de filtrado SQL del handler.
+    - [ ] Módulo `Playback`: Aislar la lógica de ffmpeg/transcoding en su propio servicio.
+
+- [ ] **Hito 12: Configuración y CLI Profesional**
+    - [ ] Implementar lectura de configuración (`.env` o `config.yaml`) usando Viper/Godotenv.
+    - [ ] Eliminar constantes "hardcodeadas" (puertos, rutas, UUIDs semilla).
+    - [ ] Integrar `Cobra` para comandos de CLI (`serve`, `scan`, `user add`).
+
+- [ ] **Hito 13: Seguridad Mejorada**
+    - [ ] Sustituir hashing de passwords en texto plano/simple por `bcrypt` o `argon2`.
+    - [ ] Migrar el token de sesión MD5 a JWT (JSON Web Tokens) con fecha de expiración.
+    - [ ] Asegurar los endpoints con validación JWT estricta.
+
+- [ ] **Hito 14: Scrapers y Metadatos Dinámicos**
+    - [ ] Integración de APIs de terceros (TMDB / TVmaze).
+    - [ ] Descarga y almacenamiento automático de pósters y fondos (Fanart).
+    - [ ] Parseo y extracción profunda de metadatos (elenco, sinopsis, géneros).
+
+- [ ] **Hito 15: Transcodificación por Hardware y Estabilidad**
+    - [ ] Soporte HWA: Detección y uso de NVENC (Nvidia), QSV (Intel) o VAAPI.
+    - [ ] Gestor de Procesos FFmpeg: Matar procesos "zombies" por desconexión de clientes (Graceful Shutdown).
+    - [ ] Migraciones formales de base de datos (`golang-migrate`).
+    - [ ] Logging Estructurado JSON (`slog` o `zap`).
+
 ### Consideraciones Técnicas Críticas
 - **Seguridad:** Los tokens de sesión deben ser almacenados y validados rigurosamente.
 - **Rendimiento:** Uso de **Go + SQLite con índices optimizados** para búsquedas instantáneas en bases de datos masivas.

@@ -3,17 +3,18 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/models"
+	"github.com/gellyte/gellyte/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
 // GetItemsCounts godoc
-func GetItemsCounts(c *gin.Context) {
+func (h *Handler) GetItemsCounts(c *gin.Context) {
 	var movieCount, seriesCount, episodeCount int64
-	database.DB.Model(&models.MediaItem{}).Where("type = ?", "Movie").Count(&movieCount)
-	database.DB.Model(&models.MediaItem{}).Where("type = ?", "Series").Count(&seriesCount)
-	database.DB.Model(&models.MediaItem{}).Where("type = ?", "Episode").Count(&episodeCount)
+	
+	_, movieCount, _ = h.LibraryService.GetItems(services.GetItemsParams{ItemTypes: []string{"Movie"}, Limit: 1})
+	_, seriesCount, _ = h.LibraryService.GetItems(services.GetItemsParams{ItemTypes: []string{"Series"}, Limit: 1})
+	_, episodeCount, _ = h.LibraryService.GetItems(services.GetItemsParams{ItemTypes: []string{"Episode"}, Limit: 1})
 
 	c.JSON(http.StatusOK, gin.H{
 		"MovieCount":      movieCount,
@@ -32,7 +33,7 @@ func GetItemsCounts(c *gin.Context) {
 }
 
 // GetItemsFilters godoc
-func GetItemsFilters(c *gin.Context) {
+func (h *Handler) GetItemsFilters(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Genres":          []string{},
 		"Tags":            []string{},
@@ -42,7 +43,7 @@ func GetItemsFilters(c *gin.Context) {
 }
 
 // GetItemsRoot godoc
-func GetItemsRoot(c *gin.Context) {
+func (h *Handler) GetItemsRoot(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Name":           "Server",
 		"Id":             ServerUUID,
@@ -53,8 +54,7 @@ func GetItemsRoot(c *gin.Context) {
 }
 
 // GetMediaFolders godoc
-func GetMediaFolders(c *gin.Context) {
-	// Reutilizamos la lógica de VirtualFolders que ya escanea las colecciones
+func (h *Handler) GetMediaFolders(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Items": []gin.H{
 			{
@@ -77,50 +77,60 @@ func GetMediaFolders(c *gin.Context) {
 }
 
 // GetPhysicalPaths godoc
-func GetPhysicalPaths(c *gin.Context) {
+func (h *Handler) GetPhysicalPaths(c *gin.Context) {
 	c.JSON(http.StatusOK, []string{})
 }
 
 // GetGroupingOptions godoc
-func GetGroupingOptions(c *gin.Context) {
+func (h *Handler) GetGroupingOptions(c *gin.Context) {
 	c.JSON(http.StatusOK, []gin.H{})
 }
 
 // GetShowEpisodes godoc
-func GetShowEpisodes(c *gin.Context) {
+func (h *Handler) GetShowEpisodes(c *gin.Context) {
 	seriesId := c.Param("id")
 	if seriesId == "" {
 		seriesId = c.Query("seriesId")
 	}
 	seasonId := c.Query("seasonId")
 
-	var dbItems []models.MediaItem
+	var items []models.MediaItem
 	var total int64
-	query := database.DB.Model(&models.MediaItem{}).Where("type = ?", "Episode")
 
 	if seasonId != "" {
-		query = query.Where("parent_id = ?", seasonId)
-	} else if seriesId != "" {
-		var seasonIds []string
-		database.DB.Model(&models.MediaItem{}).Where("type = ? AND parent_id = ?", "Season", seriesId).Pluck("id", &seasonIds)
-		if len(seasonIds) > 0 {
-			query = query.Where("parent_id IN ? OR parent_id = ?", seasonIds, seriesId)
+		items, total, _ = h.LibraryService.GetItems(services.GetItemsParams{ParentID: seasonId, ItemTypes: []string{"Episode"}})
+	} else {
+		seasons, _, _ := h.LibraryService.GetItems(services.GetItemsParams{ParentID: seriesId, ItemTypes: []string{"Season"}})
+		if len(seasons) > 0 {
+			var seasonIDs []string
+			for _, s := range seasons {
+				seasonIDs = append(seasonIDs, s.ID)
+			}
+			items, total, _ = h.LibraryService.GetItems(services.GetItemsParams{ItemTypes: []string{"Episode"}})
+			filteredItems := []models.MediaItem{}
+			for _, it := range items {
+				for _, sid := range seasonIDs {
+					if it.ParentID == sid {
+						filteredItems = append(filteredItems, it)
+						break
+					}
+				}
+			}
+			items = filteredItems
+			total = int64(len(items))
 		} else {
-			query = query.Where("parent_id = ?", seriesId)
+			items, total, _ = h.LibraryService.GetItems(services.GetItemsParams{ParentID: seriesId, ItemTypes: []string{"Episode"}})
 		}
 	}
 
-	query.Count(&total)
-	query.Find(&dbItems)
-
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+		userId = AdminUUID
 	}
 
 	respItems := []BaseItemDto{}
-	for _, item := range dbItems {
-		respItems = append(respItems, mapToDto(item, userId))
+	for _, item := range items {
+		respItems = append(respItems, h.mapToDto(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -130,24 +140,19 @@ func GetShowEpisodes(c *gin.Context) {
 }
 
 // GetShowSeasons godoc
-func GetShowSeasons(c *gin.Context) {
+func (h *Handler) GetShowSeasons(c *gin.Context) {
 	seriesId := c.Param("id")
 
-	var dbItems []models.MediaItem
-	var total int64
-	query := database.DB.Model(&models.MediaItem{}).Where("type = ? AND parent_id = ?", "Season", seriesId)
-
-	query.Count(&total)
-	query.Find(&dbItems)
+	items, total, _ := h.LibraryService.GetItems(services.GetItemsParams{ParentID: seriesId, ItemTypes: []string{"Season"}})
 
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+		userId = AdminUUID
 	}
 
 	respItems := []BaseItemDto{}
-	for _, item := range dbItems {
-		respItems = append(respItems, mapToDto(item, userId))
+	for _, item := range items {
+		respItems = append(respItems, h.mapToDto(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{

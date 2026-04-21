@@ -10,6 +10,8 @@ import (
 	"github.com/gellyte/gellyte/internal/api/middleware"
 	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/library"
+	"github.com/gellyte/gellyte/internal/repository"
+	"github.com/gellyte/gellyte/internal/services"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -22,6 +24,19 @@ import (
 // @BasePath /
 func main() {
 	database.InitDB()
+
+	// Iniciar Repositorios
+	userRepo := repository.NewUserRepository(database.DB)
+	mediaRepo := repository.NewMediaRepository(database.DB)
+	userDataRepo := repository.NewUserItemDataRepository(database.DB)
+
+	// Iniciar Servicios
+	authService := services.NewAuthService(userRepo)
+	libraryService := services.NewLibraryService(mediaRepo, userDataRepo)
+	playbackService := services.NewPlaybackService(mediaRepo, userDataRepo)
+
+	// Iniciar Handlers
+	h := handlers.NewHandler(authService, libraryService, playbackService)
 
 	// Iniciar el Hub de WebSockets
 	go handlers.GlobalHub.Run()
@@ -47,129 +62,129 @@ func main() {
 	// --- RUTAS COMPATIBLES (CON ALIAS) ---
 
 	// Sistema
-	r.GET("/System/Info/Public", handlers.GetPublicInfo)
-	r.GET("/system/info/public", handlers.GetPublicInfo)
-	r.GET("/emby/System/Info/Public", handlers.GetPublicInfo)
-	r.GET("/System/Info", handlers.GetSystemInfo)
-	r.GET("/system/info", handlers.GetSystemInfo)
-	r.GET("/emby/System/Info", handlers.GetSystemInfo)
-	r.GET("/System/Ping", handlers.GetPingSystem)
-	r.GET("/system/ping", handlers.GetPingSystem)
-	r.GET("/Moonfin/Ping", handlers.GetPingSystem)
-	r.GET("/moonfin/ping", handlers.GetPingSystem)
+	r.GET("/System/Info/Public", h.GetPublicInfo)
+	r.GET("/system/info/public", h.GetPublicInfo)
+	r.GET("/emby/System/Info/Public", h.GetPublicInfo)
+	r.GET("/System/Info", h.GetSystemInfo)
+	r.GET("/system/info", h.GetSystemInfo)
+	r.GET("/emby/System/Info", h.GetSystemInfo)
+	r.GET("/System/Ping", h.GetPingSystem)
+	r.GET("/system/ping", h.GetPingSystem)
+	r.GET("/Moonfin/Ping", h.GetPingSystem)
+	r.GET("/moonfin/ping", h.GetPingSystem)
 
 	// Usuarios y Auth
-	r.GET("/Users/Public", handlers.GetPublicUsers)
-	r.GET("/users/public", handlers.GetPublicUsers)
-	r.GET("/emby/Users/Public", handlers.GetPublicUsers)
-	r.GET("/Users", handlers.GetPublicUsers)
-	r.GET("/users", handlers.GetPublicUsers)
-	r.GET("/emby/Users", handlers.GetPublicUsers)
+	r.GET("/Users/Public", h.GetPublicUsers)
+	r.GET("/users/public", h.GetPublicUsers)
+	r.GET("/emby/Users/Public", h.GetPublicUsers)
+	r.GET("/Users", h.GetPublicUsers)
+	r.GET("/users", h.GetPublicUsers)
+	r.GET("/emby/Users", h.GetPublicUsers)
 
-	r.POST("/Users/AuthenticateByName", handlers.AuthenticateByName)
-	r.POST("/users/authenticatebyname", handlers.AuthenticateByName)
-	r.POST("/emby/Users/AuthenticateByName", handlers.AuthenticateByName)
-	r.POST("/Users/:id", handlers.GetUserById)
-	r.GET("/Users/:id", handlers.GetUserById)
-	r.GET("/users/:id", handlers.GetUserById)
-	r.GET("/Users/Me", handlers.GetCurrentUser)
-	r.GET("/users/me", handlers.GetCurrentUser)
+	r.POST("/Users/AuthenticateByName", h.AuthenticateByName)
+	r.POST("/users/authenticatebyname", h.AuthenticateByName)
+	r.POST("/emby/Users/AuthenticateByName", h.AuthenticateByName)
+	r.POST("/Users/:id", h.GetUserById)
+	r.GET("/Users/:id", h.GetUserById)
+	r.GET("/users/:id", h.GetUserById)
+	r.GET("/Users/Me", h.GetCurrentUser)
+	r.GET("/users/me", h.GetCurrentUser)
 
 	// Vistas y Preferencias
-	r.GET("/Users/:id/Views", handlers.GetUserViews)
-	r.GET("/users/:id/views", handlers.GetUserViews)
-	r.GET("/DisplayPreferences/usersettings", handlers.GetDisplayPreferences)
-	r.GET("/displaypreferences/usersettings", handlers.GetDisplayPreferences)
+	r.GET("/Users/:id/Views", h.GetUserViews)
+	r.GET("/users/:id/views", h.GetUserViews)
+	r.GET("/DisplayPreferences/usersettings", h.GetDisplayPreferences)
+	r.GET("/displaypreferences/usersettings", h.GetDisplayPreferences)
 
 	// Biblioteca
-	r.GET("/Library/VirtualFolders", handlers.GetVirtualFolders)
-	r.GET("/library/virtualfolders", handlers.GetVirtualFolders)
-	r.GET("/Library/MediaFolders", handlers.GetMediaFolders)
-	r.GET("/library/mediafolders", handlers.GetMediaFolders)
-	r.GET("/Library/PhysicalPaths", handlers.GetPhysicalPaths)
-	r.GET("/library/physicalpaths", handlers.GetPhysicalPaths)
-	r.GET("/Items", handlers.GetItems)
-	r.GET("/items", handlers.GetItems)
-	r.GET("/Items/Counts", handlers.GetItemsCounts)
-	r.GET("/items/counts", handlers.GetItemsCounts)
-	r.GET("/Items/Filters", handlers.GetItemsFilters)
-	r.GET("/items/filters", handlers.GetItemsFilters)
-	r.GET("/Items/Filters2", handlers.GetItemsFilters)
-	r.GET("/items/filters2", handlers.GetItemsFilters)
-	r.GET("/Items/Root", handlers.GetItemsRoot)
-	r.GET("/items/root", handlers.GetItemsRoot)
-	r.GET("/Items/:id", handlers.GetItemDetails)
-	r.GET("/items/:id", handlers.GetItemDetails)
+	r.GET("/Library/VirtualFolders", h.GetVirtualFolders)
+	r.GET("/library/virtualfolders", h.GetVirtualFolders)
+	r.GET("/Library/MediaFolders", h.GetMediaFolders)
+	r.GET("/library/mediafolders", h.GetMediaFolders)
+	r.GET("/Library/PhysicalPaths", h.GetPhysicalPaths)
+	r.GET("/library/physicalpaths", h.GetPhysicalPaths)
+	r.GET("/Items", h.GetItems)
+	r.GET("/items", h.GetItems)
+	r.GET("/Items/Counts", h.GetItemsCounts)
+	r.GET("/items/counts", h.GetItemsCounts)
+	r.GET("/Items/Filters", h.GetItemsFilters)
+	r.GET("/items/filters", h.GetItemsFilters)
+	r.GET("/Items/Filters2", h.GetItemsFilters)
+	r.GET("/items/filters2", h.GetItemsFilters)
+	r.GET("/Items/Root", h.GetItemsRoot)
+	r.GET("/items/root", h.GetItemsRoot)
+	r.GET("/Items/:id", h.GetItemDetails)
+	r.GET("/items/:id", h.GetItemDetails)
 
 	// Reproducción
-	r.GET("/Items/:id/PlaybackInfo", handlers.GetPlaybackInfo)
-	r.GET("/Videos/:id/stream", handlers.StreamVideo)
-	r.POST("/Items/:id/PlaybackInfo", handlers.GetPlaybackInfo) // El cliente puede enviar POST para PlaybackInfo
-	r.GET("/Items/:id/Images/:imageType", handlers.GetItemImage)
-	r.GET("/items/:id/images/:imageType", handlers.GetItemImage)
-	r.POST("/Sessions/Playing", handlers.ReportPlaying)
-	r.POST("/Sessions/Playing/Progress", handlers.ReportPlayingProgress)
-	r.POST("/Sessions/Playing/Stopped", handlers.ReportPlayingStopped)
-	r.GET("/Sessions", handlers.GetSessions)
-	r.GET("/sessions", handlers.GetSessions)
-	r.GET("/emby/Sessions", handlers.GetSessions)
-	r.GET("/Videos/:id/:mediaSourceId/Subtitles/:index/0/Stream.vtt", handlers.GetSubtitleStream)
-	r.GET("/Videos/:id/:mediaSourceId/Subtitles/:index/Stream.vtt", handlers.GetSubtitleStream)
+	r.GET("/Items/:id/PlaybackInfo", h.GetPlaybackInfo)
+	r.GET("/Videos/:id/stream", h.StreamVideo)
+	r.POST("/Items/:id/PlaybackInfo", h.GetPlaybackInfo)
+	r.GET("/Items/:id/Images/:imageType", h.GetItemImage)
+	r.GET("/items/:id/images/:imageType", h.GetItemImage)
+	r.POST("/Sessions/Playing", h.ReportPlaying)
+	r.POST("/Sessions/Playing/Progress", h.ReportPlayingProgress)
+	r.POST("/Sessions/Playing/Stopped", h.ReportPlayingStopped)
+	r.GET("/Sessions", h.GetSessions)
+	r.GET("/sessions", h.GetSessions)
+	r.GET("/emby/Sessions", h.GetSessions)
+	r.GET("/Videos/:id/:mediaSourceId/Subtitles/:index/0/Stream.vtt", h.GetSubtitleStream)
+	r.GET("/Videos/:id/:mediaSourceId/Subtitles/:index/Stream.vtt", h.GetSubtitleStream)
 
 	// Otros
-	r.GET("/Videos/:id/main.m3u8", handlers.GetHlsPlaylist)
-	r.GET("/Videos/:id/hls/:segmentId/stream.ts", handlers.GetHlsSegment)
+	r.GET("/Videos/:id/main.m3u8", h.GetHlsPlaylist)
+	r.GET("/Videos/:id/hls/:segmentId/stream.ts", h.GetHlsSegment)
 
 	r.NoRoute(func(c *gin.Context) {
-		////log.Printf("[404] No encontrado: %s %s", c.Request.Method, c.Request.URL.Path)
 		c.JSON(404, gin.H{"error": "Endpoint not implemented", "path": c.Request.URL.Path})
 	})
 	r.Match([]string{"GET", "HEAD"}, "/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "Gellyte API Server is running", "version": "10.8.13"})
 	})
 	r.GET("/favicon.ico", func(c *gin.Context) { c.Status(204) })
-	r.GET("/QuickConnect/Enabled", handlers.GetQuickConnectEnabled)
-	r.GET("/quickconnect/enabled", handlers.GetQuickConnectEnabled)
-	r.GET("/Branding/Configuration", handlers.GetBrandingConfiguration)
-	r.GET("/branding/configuration", handlers.GetBrandingConfiguration)
-	r.GET("/System/Endpoint", handlers.GetEndpointInfo)
-	r.GET("/Playback/BitrateTest", handlers.GetBitrateTest)
-	r.POST("/Sessions/Capabilities", handlers.PostCapabilities)
-	r.POST("/sessions/capabilities", handlers.PostCapabilities)
-	r.POST("/Sessions/Capabilities/Full", handlers.PostCapabilities)
+	r.GET("/QuickConnect/Enabled", h.GetQuickConnectEnabled)
+	r.GET("/quickconnect/enabled", h.GetQuickConnectEnabled)
+	r.GET("/Branding/Configuration", h.GetBrandingConfiguration)
+	r.GET("/branding/configuration", h.GetBrandingConfiguration)
+	r.GET("/System/Endpoint", h.GetEndpointInfo)
+	r.GET("/Playback/BitrateTest", h.GetBitrateTest)
+	r.POST("/Sessions/Capabilities", h.PostCapabilities)
+	r.POST("/sessions/capabilities", h.PostCapabilities)
+	r.POST("/Sessions/Capabilities/Full", h.PostCapabilities)
+	
 	// Health check endpoints
 	r.GET("/health", func(c *gin.Context) { c.Status(http.StatusOK) })
-	r.GET("/Health", func(c *gin.Context) { c.Status(http.StatusOK) })      // Common casing variation
-	r.GET("/emby/Health", func(c *gin.Context) { c.Status(http.StatusOK) }) // Emby specific health check
-	r.GET("/socket", handlers.GetDummySocket)
-	r.GET("/emby/socket", handlers.GetDummySocket)
-	r.GET("/UserViews", handlers.GetUserViews)
-	r.GET("/userviews", handlers.GetUserViews)
-	r.GET("/UserViews/GroupingOptions", handlers.GetGroupingOptions)
-	r.GET("/userviews/groupingoptions", handlers.GetGroupingOptions)
-	r.GET("/Shows/NextUp", handlers.GetNextUp)
-	r.GET("/shows/nextup", handlers.GetNextUp)
-	r.GET("/Shows/:id/Episodes", handlers.GetShowEpisodes)
-	r.GET("/shows/:id/episodes", handlers.GetShowEpisodes)
-	r.GET("/Shows/:id/Seasons", handlers.GetShowSeasons)
-	r.GET("/shows/:id/seasons", handlers.GetShowSeasons)
-	r.GET("/UserItems/Resume", handlers.GetResumeItems)
-	r.GET("/Items/:id/SpecialFeatures", handlers.GetSpecialFeatures) // Nuevo handler
-	r.GET("/items/:id/specialfeatures", handlers.GetSpecialFeatures) // Nuevo handler
-	r.GET("/Items/:id/Ancestors", handlers.GetAncestors)             // Nuevo handler
-	r.GET("/items/:id/ancestors", handlers.GetAncestors)             // Nuevo handler
-	r.GET("/Items/:id/Similar", handlers.GetSimilarItems)            // Nuevo handler
-	r.GET("/items/:id/similar", handlers.GetSimilarItems)            // Nuevo handler
-	r.GET("/MediaSegments/:id", handlers.GetMediaSegments)           // Nuevo handler para MediaSegments
-	r.GET("/mediasegments/:id", handlers.GetMediaSegments)           // Alias para MediaSegments
-	r.GET("/Users/:id/Images/Primary", handlers.GetUserPrimaryImage) // Nuevo handler
-	r.GET("/users/:id/images/primary", handlers.GetUserPrimaryImage) // Nuevo handler
-	r.GET("/useritems/resume", handlers.GetResumeItems)
-	r.GET("/Items/Latest", handlers.GetLatestItems)
-	r.GET("/items/latest", handlers.GetLatestItems)
-	r.GET("/Items/Suggestions", handlers.GetSuggestions)
-	r.GET("/items/suggestions", handlers.GetSuggestions)
-	r.GET("/api/ws/dashboard", handlers.GetDummySocket) // Handle WebSocket dashboard requests
+	r.GET("/Health", func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/emby/Health", func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/socket", h.GetDummySocket)
+	r.GET("/emby/socket", h.GetDummySocket)
+	r.GET("/UserViews", h.GetUserViews)
+	r.GET("/userviews", h.GetUserViews)
+	r.GET("/UserViews/GroupingOptions", h.GetGroupingOptions)
+	r.GET("/userviews/groupingoptions", h.GetGroupingOptions)
+	r.GET("/Shows/NextUp", h.GetNextUp)
+	r.GET("/shows/nextup", h.GetNextUp)
+	r.GET("/Shows/:id/Episodes", h.GetShowEpisodes)
+	r.GET("/shows/:id/episodes", h.GetShowEpisodes)
+	r.GET("/Shows/:id/Seasons", h.GetShowSeasons)
+	r.GET("/shows/:id/seasons", h.GetShowSeasons)
+	r.GET("/UserItems/Resume", h.GetResumeItems)
+	r.GET("/Items/:id/SpecialFeatures", h.GetSpecialFeatures)
+	r.GET("/items/:id/specialfeatures", h.GetSpecialFeatures)
+	r.GET("/Items/:id/Ancestors", h.GetAncestors)
+	r.GET("/items/:id/ancestors", h.GetAncestors)
+	r.GET("/Items/:id/Similar", h.GetSimilarItems)
+	r.GET("/items/:id/similar", h.GetSimilarItems)
+	r.GET("/MediaSegments/:id", h.GetMediaSegments)
+	r.GET("/mediasegments/:id", h.GetMediaSegments)
+	r.GET("/Users/:id/Images/Primary", h.GetUserPrimaryImage)
+	r.GET("/users/:id/images/primary", h.GetUserPrimaryImage)
+	r.GET("/useritems/resume", h.GetResumeItems)
+	r.GET("/Items/Latest", h.GetLatestItems)
+	r.GET("/items/latest", h.GetLatestItems)
+	r.GET("/Items/Suggestions", h.GetSuggestions)
+	r.GET("/items/suggestions", h.GetSuggestions)
+	r.GET("/api/ws/dashboard", h.GetDummySocket)
 	r.GET("/Streamyfin/config", func(c *gin.Context) { c.JSON(200, gin.H{}) })
 
 	log.Println("Gellyte server starting on :8081")

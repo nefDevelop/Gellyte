@@ -8,9 +8,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/library"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/transcoder"
@@ -18,29 +16,17 @@ import (
 )
 
 // GetPlaybackInfo godoc
-// @Summary Obtener información de reproducción
-// @Description Determina si el archivo se puede reproducir directamente.
-// @Tags Playback
-// @Produce json
-// @Param id path string true "ID del item"
-// @Success 200 {object} map[string]interface{}
-// @Router /Items/{id}/PlaybackInfo [get]
-// GetPlaybackInfo godoc
-func GetPlaybackInfo(c *gin.Context) {
+func (h *Handler) GetPlaybackInfo(c *gin.Context) {
 	id := c.Param("id")
 
-	var item models.MediaItem
-	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+	item, err := h.PlaybackService.GetItem(id)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Item no encontrado"})
 		return
 	}
 
-	// Por ahora simulamos que todo es Direct Play para máxima fluidez en el MVP extendido.
-	// Sin embargo, preparamos la estructura para que apps como Swiftfin no den error.
-
 	streamUrl := fmt.Sprintf("/Videos/%s/stream", item.ID)
 
-	// Extraer pistas de audio y subtítulos al vuelo para poblar la UI de Jellyfin
 	mediaStreams := []gin.H{}
 	rawMeta, err := library.GetRawMetadata(item.Path)
 	if err == nil && rawMeta != nil {
@@ -88,7 +74,7 @@ func GetPlaybackInfo(c *gin.Context) {
 				"IsRemote":             false,
 				"SupportsDirectPlay":   true,
 				"SupportsDirectStream": true,
-				"SupportsTranscoding":  true, // Decimos que sí para que la app lo considere
+				"SupportsTranscoding":  true,
 				"TranscodingUrl":         fmt.Sprintf("/Videos/%s/main.m3u8?VideoCodec=h264&AudioCodec=aac", item.ID),
 				"TranscodingSubProtocol": "hls",
 				"TranscodingContainer":   "ts",
@@ -104,23 +90,16 @@ func GetPlaybackInfo(c *gin.Context) {
 }
 
 // StreamVideo godoc
-// @Summary Stream de video (Direct Play o Transcodificación)
-// @Description Sirve el archivo de video. Si se solicita mediante parámetros de transcodificación, usa FFmpeg.
-// @Tags Playback
-// @Param id path string true "ID del item"
-// @Router /Videos/{id}/stream [get]
-func StreamVideo(c *gin.Context) {
+func (h *Handler) StreamVideo(c *gin.Context) {
 	id := c.Param("id")
 
-	var item models.MediaItem
-	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+	item, err := h.PlaybackService.GetItem(id)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Video no encontrado"})
 		return
 	}
 
-	// Si el cliente pide "Static=true", servimos el archivo original (Direct Play)
 	if c.Query("Static") == "true" {
-		// Asegurar el tipo MIME correcto para ayudar a la compatibilidad del navegador
 		mimeType := "video/" + item.Container
 		if item.Container == "mkv" {
 			mimeType = "video/x-matroska"
@@ -131,31 +110,20 @@ func StreamVideo(c *gin.Context) {
 		}
 
 		c.Header("Content-Type", mimeType)
-		// c.File maneja automáticamente los HTTP Range Requests (adelantar/retrasar video)
 		c.File(item.Path)
 		return
 	}
 
-	// De lo contrario, activamos el motor de transcodificación
-	TranscodeVideo(c)
+	h.TranscodeVideo(c)
 }
 
 // ReportPlaying godoc
-// @Summary Reportar inicio/progreso de reproducción
-// @Description Sincroniza el estado de reproducción con el servidor.
-// @Tags Playback
-// @Success 204 "No Content"
-// @Router /Sessions/Playing [post]
-func ReportPlaying(c *gin.Context) {
-	// Por ahora solo aceptamos el reporte para que la app no de error.
+func (h *Handler) ReportPlaying(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
 // ReportPlayingProgress godoc
-// @Summary Reportar progreso de reproducción
-// @Tags Playback
-// @Router /Sessions/Playing/Progress [post]
-func ReportPlayingProgress(c *gin.Context) {
+func (h *Handler) ReportPlayingProgress(c *gin.Context) {
 	var req struct {
 		ItemId        string `json:"ItemId"`
 		PositionTicks int64  `json:"PositionTicks"`
@@ -169,58 +137,22 @@ func ReportPlayingProgress(c *gin.Context) {
 
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = "53896590-3b41-46a4-9591-96b054a8e3f6" // Fallback al admin si no hay sesión
+		userId = AdminUUID
 	}
 
-	// Buscar el item para saber su duración total
-	var item models.MediaItem
-	if err := database.DB.Where("id = ?", req.ItemId).First(&item).Error; err != nil {
-		c.Status(http.StatusNoContent)
-		return
+	err := h.PlaybackService.UpdateProgress(userId, req.ItemId, req.PositionTicks, req.IsPaused)
+	if err == nil {
+		NotifyUserDataChanged(userId, req.ItemId)
 	}
-
-	// Calcular si ya se consideraría "visto" (ej. 90% del video)
-	isPlayed := false
-	if item.RunTimeTicks > 0 && float64(req.PositionTicks) > float64(item.RunTimeTicks)*0.9 {
-		isPlayed = true
-	}
-
-	userData := models.UserItemData{
-		UserID:      userId,
-		MediaItemID: req.ItemId,
-	}
-
-	// Update or Create usando GORM
-	database.DB.Where(&userData).FirstOrCreate(&userData)
-
-	// Solo incrementar la cuenta de reproducciones la primera vez que cruza el umbral del 90%
-	if isPlayed && !userData.Played {
-		userData.PlayCount++
-	}
-
-	userData.PlaybackPositionTicks = req.PositionTicks
-	userData.Played = isPlayed
-	userData.LastPlayedDate = time.Now()
-
-	database.DB.Save(&userData)
-
-	// Sincronizar con otros dispositivos vía WebSocket
-	NotifyUserDataChanged(userId, req.ItemId)
 
 	c.Status(http.StatusNoContent)
 }
 
 // ReportPlayingStopped godoc
-// @Summary Reportar fin de reproducción
-// @Description Notifica al servidor que el usuario cerró el reproductor.
-// @Tags Playback
-// @Success 204 "No Content"
-// @Router /Sessions/Playing/Stopped [post]
-func ReportPlayingStopped(c *gin.Context) {
+func (h *Handler) ReportPlayingStopped(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// parseTranscodeOptions centraliza la lógica inteligente de codec para todas las transmisiones
 func parseTranscodeOptions(c *gin.Context, item models.MediaItem) transcoder.TranscodeOptions {
 	startTimeTicks, _ := strconv.ParseInt(c.Query("startTimeTicks"), 10, 64)
 	bitrate, _ := strconv.ParseInt(c.Query("maxBitrate"), 10, 64)
@@ -261,17 +193,16 @@ func parseTranscodeOptions(c *gin.Context, item models.MediaItem) transcoder.Tra
 }
 
 // TranscodeVideo maneja la transcodificación en tiempo real.
-func TranscodeVideo(c *gin.Context) {
+func (h *Handler) TranscodeVideo(c *gin.Context) {
 	id := c.Param("id")
-	var item models.MediaItem
-	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+	item, err := h.PlaybackService.GetItem(id)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Video no encontrado"})
 		return
 	}
 
-	opts := parseTranscodeOptions(c, item)
-
-	cmd := transcoder.BuildTranscodeCmd(item, opts)
+	opts := parseTranscodeOptions(c, *item)
+	cmd := h.PlaybackService.StartTranscode(*item, opts)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -286,42 +217,34 @@ func TranscodeVideo(c *gin.Context) {
 		return
 	}
 
-	// Asegurarse de que el proceso de FFmpeg se termine si el cliente se desconecta prematuramente
-	// o si hay un error durante el streaming.
 	defer func() {
 		cmd.Process.Kill()
-		cmd.Wait() // Esperar a que el proceso realmente termine
+		cmd.Wait()
 	}()
 
-	// Configurar headers para streaming
 	c.Header("Content-Type", "video/x-matroska")
 	c.Header("Transfer-Encoding", "chunked")
 
-	// Transmitir datos en vivo
-	_, err = io.Copy(c.Writer, stdout) // This will block until stdout is closed or an error occurs.
-	// The defer function will handle cmd.Process.Kill() and cmd.Wait()
-
+	_, err = io.Copy(c.Writer, stdout)
 	if err != nil {
-		//log.Printf("[Transcoder] Error durante el streaming: %v", err)
+		// handle err
 	}
-
-	cmd.Process.Kill() // Asegurarse de cerrar FFmpeg al terminar
+	cmd.Process.Kill()
 }
 
 // GetHlsPlaylist genera un archivo .m3u8 dinámico para el video.
-func GetHlsPlaylist(c *gin.Context) {
+func (h *Handler) GetHlsPlaylist(c *gin.Context) {
 	id := c.Param("id")
-	var item models.MediaItem
-	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+	item, err := h.PlaybackService.GetItem(id)
+	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
 
-	segmentDuration := 10 // segundos
+	segmentDuration := 10
 	totalSeconds := item.RunTimeTicks / 10000000
 
 	if totalSeconds == 0 {
-		// Fallback de seguridad por si el archivo no tiene metadatos de duración válidos
 		c.String(http.StatusBadRequest, "Duración del video desconocida")
 		return
 	}
@@ -329,7 +252,7 @@ func GetHlsPlaylist(c *gin.Context) {
 	numSegments := int(totalSeconds / int64(segmentDuration))
 	remainder := totalSeconds % int64(segmentDuration)
 	if remainder > 0 {
-		numSegments++ // Agregar un segmento adicional para el residuo final
+		numSegments++
 	}
 
 	playlist := "#EXTM3U\n"
@@ -340,7 +263,6 @@ func GetHlsPlaylist(c *gin.Context) {
 
 	for i := 0; i < numSegments; i++ {
 		duration := segmentDuration
-		// El último segmento debe durar exactamente lo que resta del video, no 10 segundos fijos
 		if i == numSegments-1 && remainder > 0 {
 			duration = int(remainder)
 		}
@@ -355,20 +277,20 @@ func GetHlsPlaylist(c *gin.Context) {
 }
 
 // GetHlsSegment transcodifica y sirve un trozo específico de 10 segundos.
-func GetHlsSegment(c *gin.Context) {
+func (h *Handler) GetHlsSegment(c *gin.Context) {
 	id := c.Param("id")
 	segmentIdRaw := c.Param("segmentId")
 	segmentIdx, _ := strconv.Atoi(segmentIdRaw)
 
-	var item models.MediaItem
-	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+	item, err := h.PlaybackService.GetItem(id)
+	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
 
-	opts := parseTranscodeOptions(c, item) // Lógica Remux ahora aplicada a Apple HLS
+	opts := parseTranscodeOptions(c, *item)
 
-	cmd := transcoder.BuildHLSSegmentCmd(item, segmentIdx, 10, opts)
+	cmd := h.PlaybackService.GetHLSSegment(*item, segmentIdx, 10, opts)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Printf("[Transcoder] Error creando stdout pipe para FFmpeg HLS segment: %v", err)
@@ -382,7 +304,6 @@ func GetHlsSegment(c *gin.Context) {
 		return
 	}
 
-	// Asegurarse de que el proceso de FFmpeg se termine sin importar cómo acabe la función
 	defer func() {
 		cmd.Process.Kill()
 		cmd.Wait()
@@ -393,7 +314,7 @@ func GetHlsSegment(c *gin.Context) {
 }
 
 // GetSubtitleStream extrae subtítulos embebidos al vuelo en formato WebVTT compatible con web.
-func GetSubtitleStream(c *gin.Context) {
+func (h *Handler) GetSubtitleStream(c *gin.Context) {
 	id := c.Param("id")
 	indexRaw := c.Param("index")
 	index, err := strconv.Atoi(indexRaw)
@@ -402,8 +323,8 @@ func GetSubtitleStream(c *gin.Context) {
 		return
 	}
 
-	var item models.MediaItem
-	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+	item, err := h.PlaybackService.GetItem(id)
+	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}

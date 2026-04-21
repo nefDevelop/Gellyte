@@ -9,20 +9,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func setupSystemRouter() *gin.Engine {
+func setupSystemRouter() (*gin.Engine, *Handler) {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
+	h := setupHandler()
 	
-	r.GET("/System/Info/Public", GetPublicInfo)
-	r.GET("/System/Info", GetSystemInfo)
-	r.GET("/System/Ping", GetPingSystem)
-	r.GET("/System/Endpoint", GetEndpointInfo)
+	r.GET("/System/Info/Public", h.GetPublicInfo)
+	r.GET("/System/Info", h.GetSystemInfo)
+	r.GET("/System/Ping", h.GetPingSystem)
+	r.GET("/System/Endpoint", h.GetEndpointInfo)
 	
-	return r
+	return r, h
 }
 
 func TestGetPingSystem(t *testing.T) {
-	r := setupSystemRouter()
+	r, _ := setupSystemRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/System/Ping", nil)
 	r.ServeHTTP(w, req)
@@ -37,7 +38,7 @@ func TestGetPingSystem(t *testing.T) {
 }
 
 func TestGetPublicInfo(t *testing.T) {
-	r := setupSystemRouter()
+	r, _ := setupSystemRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/System/Info/Public", nil)
 	req.Host = "localhost:8081"
@@ -55,7 +56,7 @@ func TestGetPublicInfo(t *testing.T) {
 }
 
 func TestGetSystemInfo(t *testing.T) {
-	r := setupSystemRouter()
+	r, _ := setupSystemRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/System/Info", nil)
 	r.ServeHTTP(w, req)
@@ -72,7 +73,7 @@ func TestGetSystemInfo(t *testing.T) {
 }
 
 func TestGetEndpointInfo(t *testing.T) {
-	r := setupSystemRouter()
+	r, _ := setupSystemRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/System/Endpoint", nil)
 	req.Host = "test-host"

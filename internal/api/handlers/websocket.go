@@ -44,7 +44,6 @@ func (h *Hub) Run() {
 			h.mu.Lock()
 			h.Clients[client] = true
 			h.mu.Unlock()
-			//log.Printf("[WS] Cliente registrado. Total: %d", len(h.Clients))
 		case client := <-h.Unregister:
 			h.mu.Lock()
 			if _, ok := h.Clients[client]; ok {
@@ -52,7 +51,6 @@ func (h *Hub) Run() {
 				close(client.Send)
 			}
 			h.mu.Unlock()
-			//log.Printf("[WS] Cliente desconectado. Total: %d", len(h.Clients))
 		case message := <-h.Broadcast:
 			h.mu.Lock()
 			for client := range h.Clients {
@@ -69,10 +67,9 @@ func (h *Hub) Run() {
 }
 
 // GetDummySocket ahora es funcional usando Gorilla WebSocket
-func GetDummySocket(c *gin.Context) {
+func (h *Handler) GetDummySocket(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		//log.Printf("[WS] Error al actualizar a WebSocket: %v", err)
 		return
 	}
 

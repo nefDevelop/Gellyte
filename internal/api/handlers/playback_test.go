@@ -12,15 +12,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func setupPlaybackRouter() *gin.Engine {
+func setupPlaybackRouter() (*gin.Engine, *Handler) {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
+	h := setupHandler()
 	
-	r.GET("/Items/:id/PlaybackInfo", GetPlaybackInfo)
-	r.POST("/Sessions/Playing/Progress", ReportPlayingProgress)
-	r.GET("/Videos/:id/stream", StreamVideo)
+	r.GET("/Items/:id/PlaybackInfo", h.GetPlaybackInfo)
+	r.POST("/Sessions/Playing/Progress", h.ReportPlayingProgress)
+	r.GET("/Videos/:id/stream", h.StreamVideo)
 	
-	return r
+	return r, h
 }
 
 func TestParseTranscodeOptions(t *testing.T) {
@@ -64,7 +65,7 @@ func TestGetPlaybackInfo(t *testing.T) {
 	setupTestDB()
 	database.DB.Create(&models.MediaItem{ID: "m1", Name: "Movie 1"})
 
-	r := setupPlaybackRouter()
+	r, _ := setupPlaybackRouter()
 	
 	// Success
 	w := httptest.NewRecorder()
@@ -87,7 +88,7 @@ func TestReportPlayingProgress(t *testing.T) {
 	setupTestDB()
 	database.DB.Create(&models.MediaItem{ID: "m1", Name: "Movie 1", RunTimeTicks: 10000})
 
-	r := setupPlaybackRouter()
+	r, _ := setupPlaybackRouter()
 	w := httptest.NewRecorder()
 	body, _ := json.Marshal(map[string]interface{}{
 		"ItemId":        "m1",
@@ -111,7 +112,7 @@ func TestReportPlayingProgress(t *testing.T) {
 
 func TestStreamVideo_NotFound(t *testing.T) {
 	setupTestDB()
-	r := setupPlaybackRouter()
+	r, _ := setupPlaybackRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/Videos/none/stream", nil)
 	r.ServeHTTP(w, req)

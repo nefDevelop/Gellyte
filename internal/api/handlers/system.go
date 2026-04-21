@@ -17,7 +17,7 @@ const (
 )
 
 // GetPublicInfo godoc
-func GetPublicInfo(c *gin.Context) {
+func (h *Handler) GetPublicInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, PublicSystemInfo{
 		LocalAddress:           fmt.Sprintf("http://%s", c.Request.Host),
 		ServerName:             serverName,
@@ -30,7 +30,7 @@ func GetPublicInfo(c *gin.Context) {
 }
 
 // GetSystemInfo godoc
-func GetSystemInfo(c *gin.Context) {
+func (h *Handler) GetSystemInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, SystemInfo{
 		SystemUpdateLevel:           "None",
 		OperatingSystem:             operatingSystem,
@@ -56,12 +56,12 @@ func GetSystemInfo(c *gin.Context) {
 }
 
 // PostCapabilities godoc
-func PostCapabilities(c *gin.Context) {
+func (h *Handler) PostCapabilities(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
 // GetBitrateTest devuelve datos aleatorios para que la app mida la velocidad.
-func GetBitrateTest(c *gin.Context) {
+func (h *Handler) GetBitrateTest(c *gin.Context) {
 	// 500kb de datos para la prueba de velocidad.
 	const size = 500000
 	data := make([]byte, size)
@@ -69,7 +69,7 @@ func GetBitrateTest(c *gin.Context) {
 }
 
 // GetEndpointInfo devuelve la URL base del servidor.
-func GetEndpointInfo(c *gin.Context) {
+func (h *Handler) GetEndpointInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"IsLocal": true,
 		"Address": fmt.Sprintf("http://%s", c.Request.Host),
@@ -77,24 +77,12 @@ func GetEndpointInfo(c *gin.Context) {
 }
 
 // GetQuickConnectEnabled godoc
-// @Summary Comprobar si QuickConnect está habilitado
-// @Description Devuelve si la función QuickConnect está disponible.
-// @Tags System
-// @Produce json
-// @Success 200 {boolean} boolean
-// @Router /QuickConnect/Enabled [get]
-func GetQuickConnectEnabled(c *gin.Context) {
+func (h *Handler) GetQuickConnectEnabled(c *gin.Context) {
 	c.JSON(http.StatusOK, false)
 }
 
 // GetBrandingConfiguration godoc
-// @Summary Obtener configuración de branding
-// @Description Devuelve la configuración de branding del servidor.
-// @Tags System
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Router /Branding/Configuration [get]
-func GetBrandingConfiguration(c *gin.Context) {
+func (h *Handler) GetBrandingConfiguration(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"LoginDisclaimer":     "",
 		"CustomCss":           "",
@@ -103,7 +91,6 @@ func GetBrandingConfiguration(c *gin.Context) {
 }
 
 // GetPingSystem godoc
-func GetPingSystem(c *gin.Context) {
-	// Jellyfin clients typically expect a string "Jellyfin Server" or a simple 200 response
+func (h *Handler) GetPingSystem(c *gin.Context) {
 	c.String(http.StatusOK, productName)
 }

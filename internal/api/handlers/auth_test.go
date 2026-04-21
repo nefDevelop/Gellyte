@@ -12,18 +12,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func setupAuthRouter() *gin.Engine {
+func setupAuthRouter() (*gin.Engine, *Handler) {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
+	h := setupHandler()
 	
-	r.GET("/Users/Public", GetPublicUsers)
-	r.POST("/Users/AuthenticateByName", AuthenticateByName)
-	r.GET("/Users/Me", GetCurrentUser)
-	r.GET("/Users/:id", GetUserById)
-	r.GET("/Users/:id/Views", GetUserViews)
-	r.GET("/DisplayPreferences/:id", GetDisplayPreferences)
+	r.GET("/Users/Public", h.GetPublicUsers)
+	r.POST("/Users/AuthenticateByName", h.AuthenticateByName)
+	r.GET("/Users/Me", h.GetCurrentUser)
+	r.GET("/Users/:id", h.GetUserById)
+	r.GET("/Users/:id/Views", h.GetUserViews)
+	r.GET("/DisplayPreferences/:id", h.GetDisplayPreferences)
 	
-	return r
+	return r, h
 }
 
 func TestGetPublicUsers(t *testing.T) {
@@ -33,7 +34,7 @@ func TestGetPublicUsers(t *testing.T) {
 		Username: "user1",
 	})
 
-	r := setupAuthRouter()
+	r, _ := setupAuthRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/Users/Public", nil)
 	r.ServeHTTP(w, req)
@@ -57,7 +58,7 @@ func TestAuthenticateByName(t *testing.T) {
 		Password: "password123",
 	})
 
-	r := setupAuthRouter()
+	r, _ := setupAuthRouter()
 
 	// Success
 	w := httptest.NewRecorder()
@@ -97,7 +98,7 @@ func TestGetUserById(t *testing.T) {
 		Username: "user1",
 	})
 
-	r := setupAuthRouter()
+	r, _ := setupAuthRouter()
 	
 	// Found
 	w := httptest.NewRecorder()
@@ -117,7 +118,7 @@ func TestGetUserById(t *testing.T) {
 }
 
 func TestGetUserViews(t *testing.T) {
-	r := setupAuthRouter()
+	r, _ := setupAuthRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/Users/u1/Views", nil)
 	r.ServeHTTP(w, req)
@@ -134,7 +135,7 @@ func TestGetUserViews(t *testing.T) {
 }
 
 func TestGetDisplayPreferences(t *testing.T) {
-	r := setupAuthRouter()
+	r, _ := setupAuthRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/DisplayPreferences/u1", nil)
 	r.ServeHTTP(w, req)

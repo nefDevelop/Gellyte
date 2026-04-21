@@ -1,13 +1,10 @@
 package handlers
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"net/http"
 	"time"
 
 	"github.com/gellyte/gellyte/internal/api/middleware"
-	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gin-gonic/gin"
 )
@@ -25,9 +22,12 @@ type AuthRequest struct {
 	Pw       string `json:"Pw"`
 }
 
-func GetPublicUsers(c *gin.Context) {
-	var users []models.User
-	database.DB.Find(&users)
+func (h *Handler) GetPublicUsers(c *gin.Context) {
+	users, err := h.AuthService.GetAllUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	resp := []UserDto{}
@@ -54,7 +54,7 @@ func GetPublicUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-func AuthenticateByName(c *gin.Context) {
+func (h *Handler) AuthenticateByName(c *gin.Context) {
 	var req AuthRequest
 	clientAuth, _ := c.Get("auth")
 	authInfo, ok := clientAuth.(middleware.EmbyAuth)
@@ -71,20 +71,11 @@ func AuthenticateByName(c *gin.Context) {
 		pw = req.Pw
 	}
 
-	var user models.User
-	if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no encontrado"})
+	user, token, err := h.AuthService.Authenticate(username, pw, authInfo.DeviceId)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-
-	if user.Password != "" && pw != user.Password {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Password incorrecta"})
-		return
-	}
-
-	// Generar un token único de sesión (32 chars hex sin guiones)
-	hash := md5.Sum([]byte(time.Now().String() + user.Username + authInfo.DeviceId))
-	token := hex.EncodeToString(hash[:])
 
 	c.Header("X-Emby-Token", token)
 	c.Header("X-MediaBrowser-Token", token)
@@ -164,16 +155,31 @@ func AuthenticateByName(c *gin.Context) {
 	c.JSON(http.StatusOK, authResult)
 }
 
-func GetCurrentUser(c *gin.Context) {
-	var user models.User
-	database.DB.Where("username = ?", "admin").First(&user)
+func (h *Handler) GetCurrentUser(c *gin.Context) {
+	users, _ := h.AuthService.GetAllUsers()
+	var adminUser *models.User
+	for _, u := range users {
+		if u.Username == "admin" {
+			adminUser = &u
+			break
+		}
+	}
+	
+	if adminUser == nil && len(users) > 0 {
+		adminUser = &users[0]
+	}
+
+	if adminUser == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No users found"})
+		return
+	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	c.JSON(http.StatusOK, UserDto{
-		Name:                      user.Username,
+		Name:                      adminUser.Username,
 		ServerId:                  ServerUUID,
 		ServerName:                "Gellyte",
-		Id:                        user.ID,
+		Id:                        adminUser.ID,
 		HasPassword:               true,
 		HasConfiguredPassword:     true,
 		HasConfiguredEasyPassword: true,
@@ -181,16 +187,16 @@ func GetCurrentUser(c *gin.Context) {
 		LastLoginDate:             now,
 		LastActivityDate:          now,
 		Configuration:             getDefaultConfigurationDto(),
-		Policy:                    getDefaultPolicyDto(user.IsAdmin),
+		Policy:                    getDefaultPolicyDto(adminUser.IsAdmin),
 		PrimaryImageAspectRatio:   1.0,
 		PrimaryImageTag:           "",
 	})
 }
 
-func GetUserById(c *gin.Context) {
+func (h *Handler) GetUserById(c *gin.Context) {
 	id := c.Param("id")
-	var user models.User
-	if err := database.DB.Where("id = ?", id).First(&user).Error; err != nil {
+	user, err := h.AuthService.GetUserByID(id)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No encontrado"})
 		return
 	}
@@ -210,7 +216,7 @@ func GetUserById(c *gin.Context) {
 	})
 }
 
-func GetUserViews(c *gin.Context) {
+func (h *Handler) GetUserViews(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Items": []gin.H{
 			{
@@ -256,7 +262,7 @@ func GetUserViews(c *gin.Context) {
 	})
 }
 
-func GetDisplayPreferences(c *gin.Context) {
+func (h *Handler) GetDisplayPreferences(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Id":               "default",
 		"ViewType":         "Default",
