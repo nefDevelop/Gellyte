@@ -1,8 +1,10 @@
 package database
 
 import (
+	"fmt"
 	"log"
 
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -13,7 +15,8 @@ var DB *gorm.DB
 
 func InitDB() {
 	var err error
-	DB, err = gorm.Open(sqlite.Open("gellyte.db?_journal_mode=WAL&_busy_timeout=5000"), &gorm.Config{
+	dsn := fmt.Sprintf("%s?_journal_mode=WAL&_busy_timeout=5000", config.AppConfig.Database.Path)
+	DB, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Error),
 	})
 	if err != nil {
@@ -29,12 +32,12 @@ func InitDB() {
 	DB.Model(&models.User{}).Count(&count)
 	if count == 0 {
 		admin := models.User{
-			ID:       "53896590-3b41-46a4-9591-96b054a8e3f6", // UUID fijo para admin con guiones
+			ID:       config.AppConfig.Jellyfin.AdminUUID,
 			Username: "admin",
 			Password: "admin",
 			IsAdmin:  true,
 		}
 		DB.Create(&admin)
-		log.Println("Usuario administrador 'admin' creado con UUID fijo.")
+		log.Println("Usuario administrador 'admin' creado con UUID desde configuración.")
 	}
 }

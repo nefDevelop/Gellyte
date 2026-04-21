@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strconv"
+
+	"github.com/gellyte/gellyte/internal/config"
 )
 
 // FFProbeResult representa la salida simplificada de ffprobe
@@ -36,7 +38,7 @@ type VideoMetadata struct {
 
 // GetRawMetadata ejecuta ffprobe y devuelve la estructura completa.
 func GetRawMetadata(path string) (*FFProbeResult, error) {
-	cmd := exec.Command("ffprobe",
+	cmd := exec.Command(config.AppConfig.Transcoder.FFprobePath,
 		"-v", "error",
 		"-show_entries", "format=duration,bit_rate:stream=index,codec_type,codec_name,width,height:stream_tags=language,title:stream_disposition=default",
 		"-of", "json=c=1",
@@ -93,7 +95,7 @@ func GetVideoMetadata(path string) (*VideoMetadata, error) {
 // GenerateThumbnail extrae un fotograma del video para usarlo como miniatura.
 func GenerateThumbnail(videoPath, thumbPath string) error {
 	// Extraer un fotograma al primer segundo (más seguro para clips cortos)
-	cmd := exec.Command("ffmpeg",
+	cmd := exec.Command(config.AppConfig.Transcoder.FFmpegPath,
 		"-ss", "00:00:01",
 		"-i", videoPath,
 		"-vframes", "1",

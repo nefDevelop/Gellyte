@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gellyte/gellyte/internal/api/middleware"
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gin-gonic/gin"
 )
@@ -53,7 +54,7 @@ func (h *Handler) GetSessions(c *gin.Context) {
 		IsActive:              true,
 		SupportsMediaControl:  true,
 		SupportsRemoteControl: true,
-		ServerId:              ServerUUID,
+		ServerId:              config.AppConfig.Jellyfin.ServerUUID,
 		SupportedCommands:     []string{"Play", "Pause", "Stop", "Seek", "NextTrack", "PreviousTrack"},
 		NowPlayingQueue:       []interface{}{},
 		Capabilities: ClientCapabilities{

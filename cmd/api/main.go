@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/gellyte/gellyte/internal/api/discovery"
 	"github.com/gellyte/gellyte/internal/api/handlers"
 	"github.com/gellyte/gellyte/internal/api/middleware"
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/library"
 	"github.com/gellyte/gellyte/internal/repository"
@@ -23,6 +25,10 @@ import (
 // @host localhost:8080
 // @BasePath /
 func main() {
+	// Iniciar Configuración
+	config.InitConfig()
+
+	// Iniciar Base de Datos
 	database.InitDB()
 
 	// Iniciar Repositorios
@@ -44,12 +50,12 @@ func main() {
 	library.OnLibraryChanged = handlers.NotifyLibraryChanged
 
 	go func() {
-		ssdp := discovery.SSDPServer{Port: 8081, ServerID: handlers.ServerUUID}
+		ssdp := discovery.SSDPServer{Port: config.AppConfig.Server.Port, ServerID: config.AppConfig.Jellyfin.ServerUUID}
 		ssdp.Start()
 	}()
 
-	go library.WatchFolder("./media/peliculas", "movies")
-	go library.WatchFolder("./media/series", "series")
+	go library.WatchFolder(config.AppConfig.Library.MoviesPath, "movies")
+	go library.WatchFolder(config.AppConfig.Library.SeriesPath, "series")
 
 	r := gin.Default()
 
@@ -59,8 +65,7 @@ func main() {
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// --- RUTAS COMPATIBLES (CON ALIAS) ---
-
+	// --- RUTAS COMPATIBLES ---
 	// Sistema
 	r.GET("/System/Info/Public", h.GetPublicInfo)
 	r.GET("/system/info/public", h.GetPublicInfo)
@@ -139,7 +144,7 @@ func main() {
 		c.JSON(404, gin.H{"error": "Endpoint not implemented", "path": c.Request.URL.Path})
 	})
 	r.Match([]string{"GET", "HEAD"}, "/", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "Gellyte API Server is running", "version": "10.8.13"})
+		c.JSON(200, gin.H{"message": "Gellyte API Server is running", "version": config.AppConfig.Server.Name})
 	})
 	r.GET("/favicon.ico", func(c *gin.Context) { c.Status(204) })
 	r.GET("/QuickConnect/Enabled", h.GetQuickConnectEnabled)
@@ -187,8 +192,8 @@ func main() {
 	r.GET("/api/ws/dashboard", h.GetDummySocket)
 	r.GET("/Streamyfin/config", func(c *gin.Context) { c.JSON(200, gin.H{}) })
 
-	log.Println("Gellyte server starting on :8081")
-	if err := r.Run(":8081"); err != nil {
+	log.Printf("Gellyte server starting on :%d", config.AppConfig.Server.Port)
+	if err := r.Run(fmt.Sprintf(":%d", config.AppConfig.Server.Port)); err != nil {
 		log.Fatal("Failed to run server: ", err)
 	}
 }

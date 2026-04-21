@@ -4,27 +4,26 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gin-gonic/gin"
 )
 
 // Constantes para evitar valores mágicos y facilitar la configuración.
 const (
-	serverName      = "Gellyte"
 	serverVersion   = "10.11.8"
 	productName     = "Jellyfin Server"
 	operatingSystem = "Linux"
-	encoderLocation = "/usr/bin/ffmpeg"
 )
 
 // GetPublicInfo godoc
 func (h *Handler) GetPublicInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, PublicSystemInfo{
 		LocalAddress:           fmt.Sprintf("http://%s", c.Request.Host),
-		ServerName:             serverName,
+		ServerName:             config.AppConfig.Server.Name,
 		Version:                serverVersion,
 		ProductName:            productName,
 		OperatingSystem:        operatingSystem,
-		Id:                     ServerUUID,
+		Id:                     config.AppConfig.Jellyfin.ServerUUID,
 		StartupWizardCompleted: true,
 	})
 }
@@ -34,14 +33,14 @@ func (h *Handler) GetSystemInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, SystemInfo{
 		SystemUpdateLevel:           "None",
 		OperatingSystem:             operatingSystem,
-		ServerName:                  serverName,
+		ServerName:                  config.AppConfig.Server.Name,
 		Version:                     serverVersion,
 		ServerVersion:               serverVersion,
-		Id:                          ServerUUID,
+		Id:                          config.AppConfig.Jellyfin.ServerUUID,
 		HasUpdateAvailable:          false,
 		CanSelfRestart:              false,
 		CanSelfUpdate:               false,
-		WebSocketPortNumber:         8081, // TODO: Debería obtenerse de la configuración
+		WebSocketPortNumber:         config.AppConfig.Server.Port,
 		SupportsHttps:               false,
 		SupportsLibraryUninstall:    false,
 		HasPendingRestart:           false,
@@ -51,7 +50,7 @@ func (h *Handler) GetSystemInfo(c *gin.Context) {
 		CanLaunchWebBrowser:         false,
 		HardwareAccelerationDrivers: []string{},
 		HasToken:                    true,
-		EncoderLocation:             encoderLocation,
+		EncoderLocation:             config.AppConfig.Transcoder.FFmpegPath,
 	})
 }
 

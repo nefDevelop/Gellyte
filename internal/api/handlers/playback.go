@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/library"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/transcoder"
@@ -137,7 +138,7 @@ func (h *Handler) ReportPlayingProgress(c *gin.Context) {
 
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = AdminUUID
+		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
 	err := h.PlaybackService.UpdateProgress(userId, req.ItemId, req.PositionTicks, req.IsPaused)

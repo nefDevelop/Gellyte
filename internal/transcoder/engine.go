@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"strconv"
 
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
 )
 
@@ -84,7 +85,7 @@ func BuildTranscodeCmd(item models.MediaItem, opts TranscodeOptions) *exec.Cmd {
 	// Formato de salida (Matroska o MPEGTS para streaming continuo)
 	args = append(args, "-f", "matroska", "-")
 
-	return exec.Command("ffmpeg", args...)
+	return exec.Command(config.AppConfig.Transcoder.FFmpegPath, args...)
 }
 
 // BuildHLSSegmentCmd genera un comando para extraer un segmento específico de 10 segundos.
@@ -128,5 +129,5 @@ func BuildHLSSegmentCmd(item models.MediaItem, segmentIndex int, segmentDuration
 	// Formato MPEG-TS para segmentos HLS
 	args = append(args, "-f", "mpegts", "-")
 
-	return exec.Command("ffmpeg", args...)
+	return exec.Command(config.AppConfig.Transcoder.FFmpegPath, args...)
 }

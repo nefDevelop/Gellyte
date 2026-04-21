@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/models"
 )
@@ -110,7 +111,7 @@ func processFile(path string, libType string, libRoot string) {
 
 	if err != nil { // No existe, crear uno nuevo
 		itemType := "Movie"
-		parentId := "12345678-1234-1234-1234-123456789012" // Default Movies Library
+		parentId := config.AppConfig.Jellyfin.MoviesLibraryID
 
 		if libType == "series" {
 			itemType = "Episode"
@@ -121,7 +122,7 @@ func processFile(path string, libType string, libRoot string) {
 				parentId = parent.ID
 			} else {
 				// Si no hay carpeta padre en DB, usamos la biblioteca de Series por defecto
-				parentId = "22345678-1234-1234-1234-123456789012"
+				parentId = config.AppConfig.Jellyfin.SeriesLibraryID
 			}
 		}
 
@@ -189,7 +190,7 @@ func processDirectory(path string, libType string, libRoot string) {
 		parentPath := filepath.Dir(path)
 		if parentPath == libRoot || parentPath == "." {
 			itemType = "Series"
-			parentId = "22345678-1234-1234-1234-123456789012"
+			parentId = config.AppConfig.Jellyfin.SeriesLibraryID
 		} else {
 			itemType = "Season"
 			// Buscar la Serie padre
@@ -218,7 +219,7 @@ func processDirectory(path string, libType string, libRoot string) {
 func removeItem(itemPath string, libRoot string) {
 	// Protección contra desconexión de disco duro:
 	// Verificamos si la raíz de la biblioteca sigue accesible.
-	// Si el disco se desconectó, la raíz dará error y evitamos borrar la base de datos.
+	// Si el disco se desconextó, la raíz dará error y evitamos borrar la base de datos.
 	if _, err := os.Stat(libRoot); os.IsNotExist(err) {
 		return
 	}

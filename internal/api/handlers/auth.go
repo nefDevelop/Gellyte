@@ -5,16 +5,9 @@ import (
 	"time"
 
 	"github.com/gellyte/gellyte/internal/api/middleware"
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gin-gonic/gin"
-)
-
-const (
-	ServerUUID = "83e4c49d-9273-4556-9a5d-4952011702f3"
-	AdminUUID  = "53896590-3b41-46a4-9591-96b054a8e3f6"
-	// IDs de librerías virtuales
-	MoviesLibraryID = "12345678-1234-1234-1234-123456789012"
-	SeriesLibraryID = "22345678-1234-1234-1234-123456789012"
 )
 
 type AuthRequest struct {
@@ -34,8 +27,8 @@ func (h *Handler) GetPublicUsers(c *gin.Context) {
 	for _, u := range users {
 		userObj := UserDto{
 			Name:                      u.Username,
-			ServerId:                  ServerUUID,
-			ServerName:                "Gellyte",
+			ServerId:                  config.AppConfig.Jellyfin.ServerUUID,
+			ServerName:                config.AppConfig.Server.Name,
 			Id:                        u.ID,
 			HasPassword:               true,
 			HasConfiguredPassword:     true,
@@ -86,8 +79,8 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 	authResult := AuthenticationResult{
 		User: UserDto{
 			Name:                      user.Username,
-			ServerId:                  ServerUUID,
-			ServerName:                "Gellyte",
+			ServerId:                  config.AppConfig.Jellyfin.ServerUUID,
+			ServerName:                config.AppConfig.Server.Name,
 			Id:                        user.ID,
 			HasPassword:               true,
 			HasConfiguredPassword:     true,
@@ -125,7 +118,7 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 			SupportsRemoteControl: true,
 			NowPlayingItem:        nil,
 			NowViewingItem:        nil,
-			ServerId:              ServerUUID,
+			ServerId:              config.AppConfig.Jellyfin.ServerUUID,
 			SupportedCommands:     []string{"Play", "Pause", "Stop", "Seek", "NextTrack", "PreviousTrack"},
 			NowPlayingQueue:       []interface{}{},
 			Capabilities: ClientCapabilities{
@@ -149,7 +142,7 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 			AdditionalUsers: []interface{}{},
 		},
 		AccessToken: token,
-		ServerId:    ServerUUID,
+		ServerId:    config.AppConfig.Jellyfin.ServerUUID,
 	}
 
 	c.JSON(http.StatusOK, authResult)
@@ -177,8 +170,8 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	c.JSON(http.StatusOK, UserDto{
 		Name:                      adminUser.Username,
-		ServerId:                  ServerUUID,
-		ServerName:                "Gellyte",
+		ServerId:                  config.AppConfig.Jellyfin.ServerUUID,
+		ServerName:                config.AppConfig.Server.Name,
 		Id:                        adminUser.ID,
 		HasPassword:               true,
 		HasConfiguredPassword:     true,
@@ -204,7 +197,7 @@ func (h *Handler) GetUserById(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Name":                      user.Username,
 		"Id":                        user.ID,
-		"ServerId":                  ServerUUID,
+		"ServerId":                  config.AppConfig.Jellyfin.ServerUUID,
 		"PrimaryImageTag":           "",
 		"HasPassword":               true,
 		"HasConfiguredPassword":     true,
@@ -221,8 +214,8 @@ func (h *Handler) GetUserViews(c *gin.Context) {
 		"Items": []gin.H{
 			{
 				"Name":           "Películas",
-				"ServerId":       ServerUUID,
-				"Id":             "12345678-1234-1234-1234-123456789012",
+				"ServerId":       config.AppConfig.Jellyfin.ServerUUID,
+				"Id":             config.AppConfig.Jellyfin.MoviesLibraryID,
 				"Type":           "CollectionFolder",
 				"CollectionType": "movies",
 				"ImageTags":      gin.H{},
@@ -240,8 +233,8 @@ func (h *Handler) GetUserViews(c *gin.Context) {
 			},
 			{
 				"Name":           "Series",
-				"ServerId":       ServerUUID,
-				"Id":             "22345678-1234-1234-1234-123456789012",
+				"ServerId":       config.AppConfig.Jellyfin.ServerUUID,
+				"Id":             config.AppConfig.Jellyfin.SeriesLibraryID,
 				"Type":           "CollectionFolder",
 				"CollectionType": "tvshows",
 				"ImageTags":      gin.H{},

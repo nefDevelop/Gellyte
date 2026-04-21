@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/services"
 	"github.com/gin-gonic/gin"
@@ -46,7 +47,7 @@ func (h *Handler) GetItemsFilters(c *gin.Context) {
 func (h *Handler) GetItemsRoot(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Name":           "Server",
-		"Id":             ServerUUID,
+		"Id":             config.AppConfig.Jellyfin.ServerUUID,
 		"IsFolder":       true,
 		"Type":           "AggregateFolder",
 		"CollectionType": "folders",
@@ -59,15 +60,15 @@ func (h *Handler) GetMediaFolders(c *gin.Context) {
 		"Items": []gin.H{
 			{
 				"Name":           "Películas",
-				"ServerId":       ServerUUID,
-				"Id":             "12345678-1234-1234-1234-123456789012",
+				"ServerId":       config.AppConfig.Jellyfin.ServerUUID,
+				"Id":             config.AppConfig.Jellyfin.MoviesLibraryID,
 				"Type":           "CollectionFolder",
 				"CollectionType": "movies",
 			},
 			{
 				"Name":           "Series",
-				"ServerId":       ServerUUID,
-				"Id":             "22345678-1234-1234-1234-123456789012",
+				"ServerId":       config.AppConfig.Jellyfin.ServerUUID,
+				"Id":             config.AppConfig.Jellyfin.SeriesLibraryID,
 				"Type":           "CollectionFolder",
 				"CollectionType": "tvshows",
 			},
@@ -125,7 +126,7 @@ func (h *Handler) GetShowEpisodes(c *gin.Context) {
 
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = AdminUUID
+		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
 	respItems := []BaseItemDto{}
@@ -147,7 +148,7 @@ func (h *Handler) GetShowSeasons(c *gin.Context) {
 
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = AdminUUID
+		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
 	respItems := []BaseItemDto{}

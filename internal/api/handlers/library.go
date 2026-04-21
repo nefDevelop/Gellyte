@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/services"
 	"github.com/gin-gonic/gin"
@@ -17,15 +18,15 @@ func (h *Handler) GetVirtualFolders(c *gin.Context) {
 	folders := []gin.H{
 		{
 			"Name":           "Películas",
-			"Locations":      []string{"./media/peliculas"},
+			"Locations":      []string{config.AppConfig.Library.MoviesPath},
 			"CollectionType": "movies",
-			"ItemId":         MoviesLibraryID,
+			"ItemId":         config.AppConfig.Jellyfin.MoviesLibraryID,
 		},
 		{
 			"Name":           "Series",
-			"Locations":      []string{"./media/series"},
+			"Locations":      []string{config.AppConfig.Library.SeriesPath},
 			"CollectionType": "tvshows",
-			"ItemId":         SeriesLibraryID,
+			"ItemId":         config.AppConfig.Jellyfin.SeriesLibraryID,
 		},
 	}
 	c.JSON(http.StatusOK, folders)
@@ -69,8 +70,8 @@ func (h *Handler) GetItems(c *gin.Context) {
 	}
 
 	// Lógica de carpetas virtuales trasladada del handler al servicio/params
-	moviesLibNorm := strings.ReplaceAll(MoviesLibraryID, "-", "")
-	seriesLibNorm := strings.ReplaceAll(SeriesLibraryID, "-", "")
+	moviesLibNorm := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
+	seriesLibNorm := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
 
 	actualParentID := parentId
 	if parentId == moviesLibNorm {
@@ -97,7 +98,7 @@ func (h *Handler) GetItems(c *gin.Context) {
 
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = AdminUUID
+		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
 	respItems := []BaseItemDto{}
@@ -108,226 +109,92 @@ func (h *Handler) GetItems(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Items":            respItems,
 		"TotalRecordCount": total,
+		"StartIndex":       startIndex,
 	})
 }
 
-// GetItemImage devuelve la imagen asociada a un item.
-func (h *Handler) GetItemImage(c *gin.Context) {
+func (h *Handler) GetItemDetails(c *gin.Context) {
 	id := c.Param("id")
 
-	if id == "" || id == "undefined" || id == "null" {
-		c.Status(http.StatusNotFound)
+	// Verificar si es una carpeta virtual (biblioteca raíz)
+	moviesLibNorm := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
+	seriesLibNorm := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
+	idNorm := strings.ReplaceAll(id, "-", "")
+
+	if idNorm == moviesLibNorm {
+		c.JSON(http.StatusOK, gin.H{
+			"Name":           "Películas",
+			"Id":             config.AppConfig.Jellyfin.MoviesLibraryID,
+			"Type":           "CollectionFolder",
+			"CollectionType": "movies",
+		})
+		return
+	} else if idNorm == seriesLibNorm {
+		c.JSON(http.StatusOK, gin.H{
+			"Name":           "Series",
+			"Id":             config.AppConfig.Jellyfin.SeriesLibraryID,
+			"Type":           "CollectionFolder",
+			"CollectionType": "tvshows",
+		})
 		return
 	}
 
-	item, err := h.LibraryService.GetItem(id)
+	item, err := h.LibraryService.GetItemByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Item no encontrado"})
+		return
+	}
+
+	userId := c.GetString("UserID")
+	if userId == "" {
+		userId = config.AppConfig.Jellyfin.AdminUUID
+	}
+
+	c.JSON(http.StatusOK, h.mapToDto(*item, userId))
+}
+
+func (h *Handler) GetItemImage(c *gin.Context) {
+	id := c.Param("id")
+	item, err := h.LibraryService.GetItemByID(id)
 	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
 
+	// Buscar thumb.jpg en la misma carpeta que el archivo de video
 	dir := filepath.Dir(item.Path)
-	imageType := c.Param("imageType")
+	thumbPath := filepath.Join(dir, "thumb.jpg")
 
-	if imageType == "Thumb" {
-		thumbPath := filepath.Join(dir, "thumb.jpg")
-		if _, err := os.Stat(thumbPath); err == nil {
-			c.File(thumbPath)
-			return
-		}
-	}
-
-	imgPath := findImage(dir, item.Name)
-	if imgPath != "" {
-		c.File(imgPath)
+	if _, err := os.Stat(thumbPath); err == nil {
+		c.File(thumbPath)
 		return
 	}
 
 	c.Status(http.StatusNotFound)
 }
 
-// Helpers para imágenes (pueden seguir siendo internos o movidos a utils)
-func findImage(dir, itemName string) string {
-	names := []string{"poster.jpg", "folder.jpg", "cover.jpg", itemName + ".jpg", "poster.png", "folder.png"}
-	for _, n := range names {
-		path := filepath.Join(dir, n)
-		if _, err := os.Stat(path); err == nil {
-			return path
-		}
-	}
-	return ""
-}
-
-func hasImage(dir, itemName string) bool {
-	return findImage(dir, itemName) != ""
-}
-
-// GetUserPrimaryImage handles requests for user primary images.
 func (h *Handler) GetUserPrimaryImage(c *gin.Context) {
-	userId := c.Param("id")
-	if userId == "" {
-		c.Status(http.StatusNotFound)
-		return
-	}
-
-	user, err := h.AuthService.GetUserByID(userId)
-	if err != nil {
-		c.Status(http.StatusNotFound)
-		return
-	}
-
-	initial := "?"
-	if len(user.Username) > 0 {
-		initial = strings.ToUpper(string([]rune(user.Username)[0]))
-	}
-
-	bgColor := "#8e44ad"
-
-	svg := `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
-  <circle cx="100" cy="100" r="100" fill="` + bgColor + `"/>
-  <text x="100" y="135" font-family="Arial, Helvetica, sans-serif" font-size="100" fill="white" font-weight="bold" text-anchor="middle">` + initial + `</text>
-</svg>`
-
-	c.Data(http.StatusOK, "image/svg+xml", []byte(svg))
+	// Jellyfin envía SVGs simples o imágenes para el avatar del usuario
+	svg := `<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#00a5ff"/><text x="50%" y="50%" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dy=".3em">G</text></svg>`
+	c.Header("Content-Type", "image/svg+xml")
+	c.String(http.StatusOK, svg)
 }
 
-// GetSpecialFeatures handles requests for special features.
-func (h *Handler) GetSpecialFeatures(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"Items":            []BaseItemDto{},
-		"TotalRecordCount": 0,
-	})
-}
-
-// GetAncestors handles requests for item ancestors.
-func (h *Handler) GetAncestors(c *gin.Context) {
-	id := c.Param("id")
-	item, err := h.LibraryService.GetItem(id)
-	if err != nil {
-		c.JSON(http.StatusOK, []BaseItemDto{})
-		return
-	}
-
-	userId := c.GetString("UserID")
-	if userId == "" {
-		userId = AdminUUID
-	}
-
-	ancestors := []BaseItemDto{}
-	
-	if item.ParentID != "" {
-		if parent, err := h.LibraryService.GetItem(item.ParentID); err == nil {
-			ancestors = append(ancestors, h.mapToDto(*parent, userId))
-		}
-	}
-
-	c.JSON(http.StatusOK, ancestors)
-}
-
-// GetSimilarItems handles requests for similar items.
-func (h *Handler) GetSimilarItems(c *gin.Context) {
-	id := c.Param("id")
-	item, err := h.LibraryService.GetItem(id)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"Items": []BaseItemDto{}, "TotalRecordCount": 0})
-		return
-	}
-
-	similar, _, _ := h.LibraryService.GetItems(services.GetItemsParams{
-		ItemTypes: []string{item.Type},
-		Limit:     12,
-	})
-
-	userId := c.GetString("UserID")
-	if userId == "" {
-		userId = AdminUUID
-	}
-
-	respItems := []BaseItemDto{}
-	for _, s := range similar {
-		if s.ID != item.ID {
-			respItems = append(respItems, h.mapToDto(s, userId))
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"Items":            respItems,
-		"TotalRecordCount": len(respItems),
-	})
-}
-
-// GetMediaSegments handles requests for media segments.
-func (h *Handler) GetMediaSegments(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"Items":            []BaseItemDto{},
-		"TotalRecordCount": 0,
-	})
-}
-
-// GetItemDetails devuelve los detalles de un item específico o carpeta virtual.
-func (h *Handler) GetItemDetails(c *gin.Context) {
-	id := c.Param("id")
-
-	if id == "" || id == "undefined" || id == "null" {
-		c.Status(http.StatusNotFound)
-		return
-	}
-
-	idNormalized := strings.ReplaceAll(id, "-", "")
-	moviesLibNorm := strings.ReplaceAll(MoviesLibraryID, "-", "")
-	seriesLibNorm := strings.ReplaceAll(SeriesLibraryID, "-", "")
-
-	if idNormalized == moviesLibNorm {
-		c.JSON(http.StatusOK, gin.H{
-			"Name":           "Películas",
-			"Id":             MoviesLibraryID,
-			"Type":           "CollectionFolder",
-			"CollectionType": "movies",
-			"IsFolder":       true,
-		})
-		return
-	}
-	if idNormalized == seriesLibNorm {
-		c.JSON(http.StatusOK, gin.H{
-			"Name":           "Series",
-			"Id":             SeriesLibraryID,
-			"Type":           "CollectionFolder",
-			"CollectionType": "tvshows",
-			"IsFolder":       true,
-		})
-		return
-	}
-
-	item, err := h.LibraryService.GetItem(id)
-	if err != nil {
-		c.Status(http.StatusNotFound)
-		return
-	}
-
-	userId := c.GetString("UserID")
-	if userId == "" {
-		userId = AdminUUID
-	}
-
-	c.JSON(http.StatusOK, h.mapToDto(*item, userId))
-}
-
-// GetNextUp devuelve el siguiente episodio disponible para ver en las series activas del usuario.
 func (h *Handler) GetNextUp(c *gin.Context) {
 	userId := c.GetString("UserID")
 	if userId == "" {
-		userId = AdminUUID
+		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
-	nextUpItems, err := h.LibraryService.GetNextUpItems(userId)
+	limit, _ := strconv.Atoi(c.DefaultQuery("Limit", "24"))
+	items, err := h.LibraryService.GetNextUp(userId, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0})
 		return
 	}
 
 	respItems := []BaseItemDto{}
-	for _, item := range nextUpItems {
+	for _, item := range items {
 		respItems = append(respItems, h.mapToDto(item, userId))
 	}
 
@@ -337,182 +204,137 @@ func (h *Handler) GetNextUp(c *gin.Context) {
 	})
 }
 
-// GetLatestItems devuelve los últimos archivos añadidos.
-func (h *Handler) GetLatestItems(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("Limit", "20"))
-	if limit == 20 && c.Query("limit") != "" {
-		limit, _ = strconv.Atoi(c.Query("limit"))
+func (h *Handler) GetResumeItems(c *gin.Context) {
+	userId := c.GetString("UserID")
+	if userId == "" {
+		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
-	parentId := c.Query("ParentId")
-	if parentId == "" {
-		parentId = c.Query("parentId")
-	}
-	parentId = strings.ReplaceAll(parentId, "-", "")
 
-	itemTypesStr := c.Query("IncludeItemTypes")
-	if itemTypesStr == "" {
-		itemTypesStr = c.Query("includeItemTypes")
+	limit, _ := strconv.Atoi(c.DefaultQuery("Limit", "24"))
+	items, err := h.LibraryService.GetResumeItems(userId, limit)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0})
+		return
 	}
+
+	respItems := []BaseItemDto{}
+	for _, item := range items {
+		respItems = append(respItems, h.mapToDto(item, userId))
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"Items":            respItems,
+		"TotalRecordCount": len(respItems),
+	})
+}
+
+func (h *Handler) GetSuggestions(c *gin.Context) {
+	userId := c.Query("userId")
+	if userId == "" {
+		userId = config.AppConfig.Jellyfin.AdminUUID
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("Limit", "12"))
+	items, err := h.LibraryService.GetSuggestions(userId, limit)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0})
+		return
+	}
+
+	respItems := []BaseItemDto{}
+	for _, item := range items {
+		respItems = append(respItems, h.mapToDto(item, userId))
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"Items":            respItems,
+		"TotalRecordCount": len(respItems),
+	})
+}
+
+// GetLatestItems godoc
+func (h *Handler) GetLatestItems(c *gin.Context) {
+	userId := c.GetString("UserID")
+	if userId == "" {
+		userId = config.AppConfig.Jellyfin.AdminUUID
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("Limit", "16"))
+	itemTypesStr := c.Query("IncludeItemTypes")
 	var itemTypes []string
 	if itemTypesStr != "" {
 		itemTypes = strings.Split(itemTypesStr, ",")
 	}
 
-	moviesLibNorm := strings.ReplaceAll(MoviesLibraryID, "-", "")
-	seriesLibNorm := strings.ReplaceAll(SeriesLibraryID, "-", "")
+	items, _, err := h.LibraryService.GetItems(services.GetItemsParams{
+		ItemTypes:  itemTypes,
+		StartIndex: 0,
+		Limit:      limit,
+		// TODO: Ordenar por fecha de creación en el repo
+	})
 
-	if parentId == moviesLibNorm {
-		itemTypes = []string{"Movie"}
-	} else if parentId == seriesLibNorm {
-		itemTypes = []string{"Episode"}
-	}
-
-	dbItems, err := h.LibraryService.GetLatestItems(limit, itemTypes)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusOK, []interface{}{})
 		return
 	}
 
-	userId := c.GetString("UserID")
-	if userId == "" {
-		userId = AdminUUID
-	}
-
 	respItems := []BaseItemDto{}
-	for _, item := range dbItems {
+	for _, item := range items {
 		respItems = append(respItems, h.mapToDto(item, userId))
 	}
 
 	c.JSON(http.StatusOK, respItems)
 }
 
-// GetResumeItems devuelve items con progreso pendiente (Continuar viendo).
-func (h *Handler) GetResumeItems(c *gin.Context) {
-	userId := c.GetString("UserID")
-	if userId == "" {
-		userId = AdminUUID
-	}
-
-	items, err := h.LibraryService.GetResumeItems(userId)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	respItems := []BaseItemDto{}
-	for _, item := range items {
-		respItems = append(respItems, h.mapToDto(item, userId))
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"Items":            respItems,
-		"TotalRecordCount": len(respItems),
-	})
+func (h *Handler) GetSpecialFeatures(c *gin.Context) {
+	c.JSON(http.StatusOK, []interface{}{})
 }
 
-// GetSuggestions devuelve sugerencias para el usuario.
-func (h *Handler) GetSuggestions(c *gin.Context) {
-	userId := c.Query("userId")
-	if userId == "" {
-		userId = AdminUUID
-	}
-
-	items, err := h.LibraryService.GetLatestItems(10, nil)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	respItems := []BaseItemDto{}
-	for _, item := range items {
-		respItems = append(respItems, h.mapToDto(item, userId))
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"Items":            respItems,
-		"TotalRecordCount": len(respItems),
-	})
+func (h *Handler) GetAncestors(c *gin.Context) {
+	c.JSON(http.StatusOK, []interface{}{})
 }
 
-// mapToDto convierte un modelo MediaItem a BaseItemDto.
+func (h *Handler) GetSimilarItems(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0})
+}
+
+func (h *Handler) GetMediaSegments(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0})
+}
+
+// mapToDto convierte un modelo de BD a un objeto de respuesta compatible con Jellyfin.
 func (h *Handler) mapToDto(item models.MediaItem, userId string) BaseItemDto {
-	parentId := ""
-	if item.Type == "Movie" {
-		parentId = MoviesLibraryID
-	} else if item.Type == "Episode" {
-		parentId = SeriesLibraryID
-	}
-
-	isFolder := item.Type == "Series" || item.Type == "Season" || item.Type == "CollectionFolder" || item.Type == "Folder"
-
-	userData := UserItemDataDto{
-		PlaybackPositionTicks: 0,
-		PlayCount:             0,
-		IsFavorite:            false,
-		Played:                false,
-	}
-
-	if userId != "" {
-		if dbUserData, err := h.LibraryService.GetUserData(userId, item.ID); err == nil {
-			userData.PlaybackPositionTicks = dbUserData.PlaybackPositionTicks
-			userData.PlayCount = dbUserData.PlayCount
-			userData.IsFavorite = dbUserData.IsFavorite
-			userData.Played = dbUserData.Played
-		}
-	}
+	// Obtener datos extras del usuario (progreso, favoritos, etc)
+	userData := h.LibraryService.GetUserData(userId, item.ID)
 
 	dto := BaseItemDto{
-		Name:                    item.Name,
-		Id:                      item.ID,
-		ServerId:                ServerUUID,
-		Type:                    item.Type,
-		MediaType:               "Video",
-		IsFolder:                isFolder,
-		PlayAccess:              "Full",
-		Path:                    item.Path,
-		ParentId:                parentId,
-		RunTimeTicks:            item.RunTimeTicks,
-		Width:                   item.Width,
-		Height:                  item.Height,
-		ProductionYear:          item.ProductionYear,
-		PrimaryImageAspectRatio: 0.66,
-		Overview:                item.Overview,
-		ImageTags:               make(map[string]string),
-		UserData:                userData,
+		Name:         item.Name,
+		Id:           item.ID,
+		ServerId:     config.AppConfig.Jellyfin.ServerUUID,
+		Type:         item.Type,
+		RunTimeTicks: item.RunTimeTicks,
+		IsFolder:     item.Type == "Series" || item.Type == "Season" || item.Type == "Folder" || item.Type == "CollectionFolder",
+		ImageTags: gin.H{
+			"Primary": "tag", // Dummy tag para activar carga de imágenes en el cliente
+		},
+		UserData: userData,
 	}
 
-	dir := filepath.Dir(item.Path)
-	if hasImage(dir, item.Name) {
-		dto.ImageTags["Primary"] = "fixed-tag"
+	if item.ProductionYear > 0 {
+		dto.ProductionYear = item.ProductionYear
 	}
-	if _, err := os.Stat(filepath.Join(dir, "thumb.jpg")); err == nil {
-		dto.ImageTags["Thumb"] = "thumb-tag"
+	if item.Overview != "" {
+		dto.Overview = item.Overview
 	}
 
-	if item.RunTimeTicks > 0 {
-		dto.MediaSources = []interface{}{
-			gin.H{
-				"Id":           item.ID,
-				"Protocol":     "Http",
-				"Container":    item.Container,
-				"RunTimeTicks": item.RunTimeTicks,
-				"Bitrate":      item.Bitrate,
-				"MediaStreams": []gin.H{
-					{
-						"Type":   "Video",
-						"Codec":  item.VideoCodec,
-						"Width":  item.Width,
-						"Height": item.Height,
-					},
-					{
-						"Type":  "Audio",
-						"Codec": item.AudioCodec,
-					},
-				},
-			},
-		}
-	} else {
-		dto.MediaSources = []interface{}{}
+	// Si es un episodio, añadir Season/Series data
+	if item.Type == "Episode" {
+		dto.IndexNumber = item.IndexNumber
+		dto.ParentIndexNumber = item.ParentIndexNumber
+		dto.SeriesName = item.SeriesName
+		dto.SeriesId = item.SeriesID
+		dto.SeasonId = item.ParentID
+		dto.SeasonName = item.SeasonName
 	}
 
 	return dto

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gin-gonic/gin"
@@ -103,7 +104,7 @@ func TestGetItemDetails(t *testing.T) {
 		expectedCode int
 	}{
 		{"Existing", movieID, http.StatusOK},
-		{"Virtual", "12345678-1234-1234-1234-123456789012", http.StatusOK},
+		{"Virtual", config.AppConfig.Jellyfin.MoviesLibraryID, http.StatusOK},
 		{"Non-existing", "wrong-id", http.StatusNotFound},
 	}
 

@@ -1,0 +1,20 @@
+server:
+  port: 8081
+  name: "Gellyte Server"
+
+database:
+  path: "gellyte.db"
+
+jellyfin:
+  server_uuid: "83e4c49d-9273-4556-9a5d-4952011702f3"
+  admin_uuid: "53896590-3b41-46a4-9591-96b054a8e3f6"
+  movies_library_id: "12345678-1234-1234-1234-123456789012"
+  series_library_id: "22345678-1234-1234-1234-123456789012"
+
+transcoder:
+  ffmpeg_path: "/usr/bin/ffmpeg"
+  ffprobe_path: "/usr/bin/ffprobe"
+
+library:
+  movies_path: "./media/peliculas"
+  series_path: "./media/series"

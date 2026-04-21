@@ -70,15 +70,8 @@
 ### Fase 3: Arquitectura Enterprise y Funciones Avanzadas (Gellyte v2)
 *Objetivo: Convertir el MVP en un producto robusto, seguro, mantenible y listo para competir.*
 
-- [ ] **Hito 11: Arquitectura Limpia (Clean Architecture)**
-    - [ ] Refactorización a capas: Controladores (Handlers) -> Casos de Uso (Services) -> Repositorios (DB).
-    - [ ] Módulo `Auth`: Extraer validación de credenciales y generación de token al servicio.
-    - [ ] Módulo `Library`: Separar la lógica compleja de filtrado SQL del handler.
-    - [ ] Módulo `Playback`: Aislar la lógica de ffmpeg/transcoding en su propio servicio.
 
-- [ ] **Hito 12: Configuración y CLI Profesional**
-    - [ ] Implementar lectura de configuración (`.env` o `config.yaml`) usando Viper/Godotenv.
-    - [ ] Eliminar constantes "hardcodeadas" (puertos, rutas, UUIDs semilla).
+
     - [ ] Integrar `Cobra` para comandos de CLI (`serve`, `scan`, `user add`).
 
 - [ ] **Hito 13: Seguridad Mejorada**

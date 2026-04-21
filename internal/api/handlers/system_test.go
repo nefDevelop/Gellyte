@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,6 +25,7 @@ func setupSystemRouter() (*gin.Engine, *Handler) {
 }
 
 func TestGetPingSystem(t *testing.T) {
+	setupTestDB()
 	r, _ := setupSystemRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/System/Ping", nil)
@@ -38,10 +41,11 @@ func TestGetPingSystem(t *testing.T) {
 }
 
 func TestGetPublicInfo(t *testing.T) {
+	setupTestDB()
 	r, _ := setupSystemRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/System/Info/Public", nil)
-	req.Host = "localhost:8081"
+	req.Host = fmt.Sprintf("localhost:%d", config.AppConfig.Server.Port)
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -50,12 +54,13 @@ func TestGetPublicInfo(t *testing.T) {
 
 	var response PublicSystemInfo
 	json.Unmarshal(w.Body.Bytes(), &response)
-	if response.ServerName != "Gellyte" {
-		t.Errorf("Se esperaba 'Gellyte', se obtuvo '%s'", response.ServerName)
+	if response.ServerName != config.AppConfig.Server.Name {
+		t.Errorf("Se esperaba '%s', se obtuvo '%s'", config.AppConfig.Server.Name, response.ServerName)
 	}
 }
 
 func TestGetSystemInfo(t *testing.T) {
+	setupTestDB()
 	r, _ := setupSystemRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/System/Info", nil)
@@ -73,6 +78,7 @@ func TestGetSystemInfo(t *testing.T) {
 }
 
 func TestGetEndpointInfo(t *testing.T) {
+	setupTestDB()
 	r, _ := setupSystemRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/System/Endpoint", nil)
