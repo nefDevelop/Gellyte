@@ -126,8 +126,8 @@ func TestGetItemImage(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "gellyte-test-*")
 	defer os.RemoveAll(tmpDir)
 
-	posterPath := filepath.Join(tmpDir, "poster.jpg")
-	os.WriteFile(posterPath, []byte("fake image"), 0644)
+	thumbPath := filepath.Join(tmpDir, "thumb.jpg")
+	os.WriteFile(thumbPath, []byte("fake image"), 0644)
 
 	id := "img-test"
 	database.DB.Create(&models.MediaItem{

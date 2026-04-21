@@ -1,5 +1,4 @@
 # Roadmap: Gellyte (Jellyfin Compatible Server in Go)
-
 ## Proyecto: Servidor compatible con el protocolo Jellyfin usando Go, Gin y SQLite.
 
 ---
@@ -46,7 +45,7 @@
     - [x] Soporte básico para archivos `.nfo` locales.
     - [x] Generación de capturas de pantalla (Thumbnails).
 
-- [ ] **Hito 8: Experiencia de Usuario y Home Screen**
+- [x] **Hito 8: Experiencia de Usuario y Home Screen**
     - [x] Endpoint `/UserViews` para compatibilidad con Streamyfin.
     - [x] Endpoints `/Items/Latest` y `/Items/Suggestions`.
     - [x] Persistencia real de progreso en DB (Resume Items).
@@ -65,14 +64,19 @@
 
 ---
 
----
-
 ### Fase 3: Arquitectura Enterprise y Funciones Avanzadas (Gellyte v2)
 *Objetivo: Convertir el MVP en un producto robusto, seguro, mantenible y listo para competir.*
 
+- [x] **Hito 11: Arquitectura Limpia (Clean Architecture)**
+    - [x] Refactorización a capas: Controladores (Handlers) -> Casos de Uso (Services) -> Repositorios (DB).
+    - [x] Módulo `Auth`: Extraer validación de credenciales y generación de token al servicio.
+    - [x] Módulo `Library`: Separar la lógica compleja de filtrado SQL del handler.
+    - [x] Módulo `Playback`: Aislar la lógica de ffmpeg/transcoding en su propio servicio.
 
-
-    - [ ] Integrar `Cobra` para comandos de CLI (`serve`, `scan`, `user add`).
+- [x] **Hito 12: Configuración y CLI Profesional**
+    - [x] Implementar lectura de configuración (`.env` o `config.yaml`) usando Viper/Godotenv.
+    - [x] Eliminar constantes "hardcodeadas" (puertos, rutas, UUIDs semilla).
+    - [x] Integrar `Cobra` para comandos de CLI (`serve`, `scan`, `user add`).
 
 - [ ] **Hito 13: Seguridad Mejorada**
     - [ ] Sustituir hashing de passwords en texto plano/simple por `bcrypt` o `argon2`.
@@ -89,10 +93,3 @@
     - [ ] Gestor de Procesos FFmpeg: Matar procesos "zombies" por desconexión de clientes (Graceful Shutdown).
     - [ ] Migraciones formales de base de datos (`golang-migrate`).
     - [ ] Logging Estructurado JSON (`slog` o `zap`).
-
-### Consideraciones Técnicas Críticas
-- **Seguridad:** Los tokens de sesión deben ser almacenados y validados rigurosamente.
-- **Rendimiento:** Uso de **Go + SQLite con índices optimizados** para búsquedas instantáneas en bases de datos masivas.
-- **Tiempo Real:** Implementación de **fsnotify** para actualizaciones automáticas de la biblioteca sin escaneos manuales.
-- **Bajo Consumo:** Procesamiento asíncrono y streaming eficiente para minimizar el uso de RAM.
-- **Compatibilidad:** Seguir estrictamente el esquema JSON de Jellyfin para evitar crashes en las apps clientes.

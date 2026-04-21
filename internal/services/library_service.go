@@ -10,8 +10,9 @@ type LibraryService interface {
 	GetItem(id string) (*models.MediaItem, error)
 	GetUserData(userID, itemID string) (*models.UserItemData, error)
 	GetLatestItems(limit int, itemTypes []string) ([]models.MediaItem, error)
-	GetResumeItems(userID string) ([]models.MediaItem, error)
-	GetNextUpItems(userID string) ([]models.MediaItem, error)
+	GetResumeItems(userID string, limit int) ([]models.MediaItem, error)
+	GetNextUpItems(userID string, limit int) ([]models.MediaItem, error)
+	GetSuggestions(userID string, limit int) ([]models.MediaItem, error)
 }
 
 type GetItemsParams struct {
@@ -42,9 +43,6 @@ func (s *libraryService) GetItems(p GetItemsParams) ([]models.MediaItem, int64, 
 	}
 
 	if p.ParentID != "" {
-		// Aquí iba la lógica de "moviesLibNorm" etc, pero el servicio lo simplifica
-		// O mejor, el handler pasa el ParentID ya filtrado o el tipo directamente.
-		// Vamos a mantener la lógica de filtrado por ParentID si es una carpeta física
 		items, err := s.mediaRepo.GetByParentID(p.ParentID)
 		if err == nil && len(items) > 0 {
 			return items, int64(len(items)), nil
@@ -66,7 +64,7 @@ func (s *libraryService) GetLatestItems(limit int, itemTypes []string) ([]models
 	return s.mediaRepo.GetLatest(limit, itemTypes)
 }
 
-func (s *libraryService) GetResumeItems(userID string) ([]models.MediaItem, error) {
+func (s *libraryService) GetResumeItems(userID string, limit int) ([]models.MediaItem, error) {
 	userDatas, err := s.userDataRepo.GetResume(userID)
 	if err != nil {
 		return nil, err
@@ -76,12 +74,15 @@ func (s *libraryService) GetResumeItems(userID string) ([]models.MediaItem, erro
 	for _, ud := range userDatas {
 		if item, err := s.mediaRepo.GetByID(ud.MediaItemID); err == nil {
 			items = append(items, *item)
+			if len(items) >= limit {
+				break
+			}
 		}
 	}
 	return items, nil
 }
 
-func (s *libraryService) GetNextUpItems(userID string) ([]models.MediaItem, error) {
+func (s *libraryService) GetNextUpItems(userID string, limit int) ([]models.MediaItem, error) {
 	played, err := s.userDataRepo.GetPlayed(userID)
 	if err != nil {
 		return nil, err
@@ -119,9 +120,17 @@ func (s *libraryService) GetNextUpItems(userID string) ([]models.MediaItem, erro
 			// Comprobar si ya fue visto
 			if data, err := s.userDataRepo.Get(userID, nextEpisode.ID); err != nil || !data.Played {
 				nextUpItems = append(nextUpItems, *nextEpisode)
+				if len(nextUpItems) >= limit {
+					break
+				}
 			}
 		}
 	}
 
 	return nextUpItems, nil
+}
+
+func (s *libraryService) GetSuggestions(userID string, limit int) ([]models.MediaItem, error) {
+	// Por ahora devolvemos los items más recientes como sugerencia
+	return s.mediaRepo.GetLatest(limit, nil)
 }

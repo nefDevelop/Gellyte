@@ -196,6 +196,12 @@ type BaseItemDto struct {
 	Overview                string                 `json:"Overview"`
 	RunTimeTicks            int64                  `json:"RunTimeTicks"`
 	ProductionYear          int                    `json:"ProductionYear"`
+	IndexNumber             int                    `json:"IndexNumber,omitempty"`
+	ParentIndexNumber       int                    `json:"ParentIndexNumber,omitempty"`
+	SeriesName              string                 `json:"SeriesName,omitempty"`
+	SeriesId                string                 `json:"SeriesId,omitempty"`
+	SeasonId                string                 `json:"SeasonId,omitempty"`
+	SeasonName              string                 `json:"SeasonName,omitempty"`
 	ExternalUrls            []interface{}          `json:"ExternalUrls"`
 	MediaSources            []interface{}          `json:"MediaSources"`
 	ImageBlurHashes         map[string]interface{} `json:"ImageBlurHashes"`

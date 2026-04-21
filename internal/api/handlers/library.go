@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
@@ -139,7 +140,7 @@ func (h *Handler) GetItemDetails(c *gin.Context) {
 		return
 	}
 
-	item, err := h.LibraryService.GetItemByID(id)
+	item, err := h.LibraryService.GetItem(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Item no encontrado"})
 		return
@@ -155,7 +156,7 @@ func (h *Handler) GetItemDetails(c *gin.Context) {
 
 func (h *Handler) GetItemImage(c *gin.Context) {
 	id := c.Param("id")
-	item, err := h.LibraryService.GetItemByID(id)
+	item, err := h.LibraryService.GetItem(id)
 	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
@@ -187,9 +188,9 @@ func (h *Handler) GetNextUp(c *gin.Context) {
 	}
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("Limit", "24"))
-	items, err := h.LibraryService.GetNextUp(userId, limit)
+	items, err := h.LibraryService.GetNextUpItems(userId, limit)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0})
+		c.JSON(http.StatusOK, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0})
 		return
 	}
 
@@ -266,13 +267,7 @@ func (h *Handler) GetLatestItems(c *gin.Context) {
 		itemTypes = strings.Split(itemTypesStr, ",")
 	}
 
-	items, _, err := h.LibraryService.GetItems(services.GetItemsParams{
-		ItemTypes:  itemTypes,
-		StartIndex: 0,
-		Limit:      limit,
-		// TODO: Ordenar por fecha de creación en el repo
-	})
-
+	items, err := h.LibraryService.GetLatestItems(limit, itemTypes)
 	if err != nil {
 		c.JSON(http.StatusOK, []interface{}{})
 		return
@@ -305,7 +300,21 @@ func (h *Handler) GetMediaSegments(c *gin.Context) {
 // mapToDto convierte un modelo de BD a un objeto de respuesta compatible con Jellyfin.
 func (h *Handler) mapToDto(item models.MediaItem, userId string) BaseItemDto {
 	// Obtener datos extras del usuario (progreso, favoritos, etc)
-	userData := h.LibraryService.GetUserData(userId, item.ID)
+	userData, _ := h.LibraryService.GetUserData(userId, item.ID)
+	
+	userDataDto := UserItemDataDto{
+		IsFavorite: false,
+		Played:     false,
+	}
+	if userData != nil {
+		userDataDto = UserItemDataDto{
+			PlaybackPositionTicks: userData.PlaybackPositionTicks,
+			PlayCount:             userData.PlayCount,
+			IsFavorite:            userData.IsFavorite,
+			Played:                userData.Played,
+			LastPlayedDate:        userData.LastPlayedDate.Format(time.RFC3339),
+		}
+	}
 
 	dto := BaseItemDto{
 		Name:         item.Name,
@@ -314,10 +323,10 @@ func (h *Handler) mapToDto(item models.MediaItem, userId string) BaseItemDto {
 		Type:         item.Type,
 		RunTimeTicks: item.RunTimeTicks,
 		IsFolder:     item.Type == "Series" || item.Type == "Season" || item.Type == "Folder" || item.Type == "CollectionFolder",
-		ImageTags: gin.H{
+		ImageTags: map[string]string{
 			"Primary": "tag", // Dummy tag para activar carga de imágenes en el cliente
 		},
-		UserData: userData,
+		UserData: userDataDto,
 	}
 
 	if item.ProductionYear > 0 {

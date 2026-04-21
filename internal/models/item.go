@@ -25,6 +25,11 @@ type MediaItem struct {
 	VideoCodec     string    `json:"VideoCodec,omitempty"`
 	AudioCodec     string    `json:"AudioCodec,omitempty"`
 	Size           int64     `json:"Size,omitempty"`
+	IndexNumber       int    `json:"IndexNumber,omitempty"`
+	ParentIndexNumber int    `json:"ParentIndexNumber,omitempty"`
+	SeriesName        string `json:"SeriesName,omitempty"`
+	SeriesID          string `json:"SeriesId,omitempty"`
+	SeasonName        string `json:"SeasonName,omitempty"`
 	CreatedAt      time.Time `json:"-"`
 	UpdatedAt      time.Time `json:"-"`
 }

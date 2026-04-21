@@ -82,6 +82,12 @@ func WatchFolder(path string, libType string) {
 	<-done
 }
 
+func ScanManual(path string, libType string) {
+	path = filepath.Clean(path)
+	log.Println("Escaneando:", path)
+	scanInitial(path, libType, path)
+}
+
 // scanInitial recorre la carpeta una vez al inicio.
 func scanInitial(root string, libType string, libRoot string) {
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
