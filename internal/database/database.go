@@ -6,13 +6,16 @@ import (
 	"github.com/gellyte/gellyte/internal/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
 
 func InitDB() {
 	var err error
-	DB, err = gorm.Open(sqlite.Open("gellyte.db"), &gorm.Config{})
+	DB, err = gorm.Open(sqlite.Open("gellyte.db?_journal_mode=WAL&_busy_timeout=5000"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Error),
+	})
 	if err != nil {
 		log.Fatal("Error conectando a la base de datos: ", err)
 	}

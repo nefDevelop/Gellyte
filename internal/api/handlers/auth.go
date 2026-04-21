@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"net/http"
 	"time"
 
@@ -43,7 +45,7 @@ func GetPublicUsers(c *gin.Context) {
 		}
 		resp = append(resp, userObj)
 	}
-	
+
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -75,7 +77,10 @@ func AuthenticateByName(c *gin.Context) {
 		return
 	}
 
-	token := "4841785566774a8481419457813a849b" // Sin guiones para máxima compatibilidad
+	// Generar un token único de sesión (32 chars hex sin guiones)
+	hash := md5.Sum([]byte(time.Now().String() + user.Username + authInfo.DeviceId))
+	token := hex.EncodeToString(hash[:])
+
 	c.Header("X-Emby-Token", token)
 	c.Header("X-MediaBrowser-Token", token)
 	c.Header("Access-Control-Expose-Headers", "X-Emby-Token, X-Emby-Authorization, X-MediaBrowser-Token")
@@ -101,46 +106,46 @@ func AuthenticateByName(c *gin.Context) {
 		},
 		SessionInfo: SessionInfoDto{
 			PlayState: PlayerStateInfo{
-				CanSeek:    true,
+				CanSeek:     true,
 				VolumeLevel: 100,
 				PlayMethod:  "DirectPlay",
 				RepeatMode:  "RepeatNone",
 			},
-			RemoteEndPoint:       c.ClientIP(),
-			PlayableMediaTypes:   []string{"Audio", "Video"},
-			Id:                   token,
-			UserId:               user.ID,
-			UserName:             user.Username,
-			Client:               authInfo.Client,
-			LastActivityDate:     now,
-			LastPlaybackCheckIn:  now,
-			LastPausedDate:       nil,
-			DeviceName:           authInfo.Device,
-			DeviceType:           "Mobile",
-			DeviceId:             authInfo.DeviceId,
-			ApplicationVersion:   authInfo.Version,
-			IsActive:             true,
-			SupportsMediaControl: true,
+			RemoteEndPoint:        c.ClientIP(),
+			PlayableMediaTypes:    []string{"Video"},
+			Id:                    token,
+			UserId:                user.ID,
+			UserName:              user.Username,
+			Client:                authInfo.Client,
+			LastActivityDate:      now,
+			LastPlaybackCheckIn:   now,
+			LastPausedDate:        nil,
+			DeviceName:            authInfo.Device,
+			DeviceType:            "Mobile",
+			DeviceId:              authInfo.DeviceId,
+			ApplicationVersion:    authInfo.Version,
+			IsActive:              true,
+			SupportsMediaControl:  true,
 			SupportsRemoteControl: true,
-			NowPlayingItem:       nil,
-			NowViewingItem:       nil,
-			ServerId:             ServerUUID,
-			SupportedCommands:    []string{"Play", "Pause", "Stop", "Seek", "NextTrack", "PreviousTrack"},
-			NowPlayingQueue:      []interface{}{},
+			NowPlayingItem:        nil,
+			NowViewingItem:        nil,
+			ServerId:              ServerUUID,
+			SupportedCommands:     []string{"Play", "Pause", "Stop", "Seek", "NextTrack", "PreviousTrack"},
+			NowPlayingQueue:       []interface{}{},
 			Capabilities: ClientCapabilities{
-				PlayableMediaTypes:   []string{"Audio", "Video"},
-				SupportedCommands:    []string{"Play", "Pause", "Stop", "Seek", "NextTrack", "PreviousTrack"},
-				SupportsMediaControl: true,
+				PlayableMediaTypes:           []string{"Video"},
+				SupportedCommands:            []string{"Play", "Pause", "Stop", "Seek", "NextTrack", "PreviousTrack"},
+				SupportsMediaControl:         true,
 				SupportsPersistentIdentifier: true,
-				SupportsSync:         false,
+				SupportsSync:                 false,
 				DeviceProfile: gin.H{
-					"Name": authInfo.Device,
-					"SupportedMediaTypes": []string{"Audio", "Video"},
-					"DirectPlayProfiles": []interface{}{},
+					"Name":                authInfo.Device,
+					"SupportedMediaTypes": []string{"Video"},
+					"DirectPlayProfiles":  []interface{}{},
 					"TranscodingProfiles": []interface{}{},
-					"ContainerProfiles": []interface{}{},
-					"CodecProfiles": []interface{}{},
-					"SubtitleProfiles": []interface{}{},
+					"ContainerProfiles":   []interface{}{},
+					"CodecProfiles":       []interface{}{},
+					"SubtitleProfiles":    []interface{}{},
 				},
 				AppStoreUrl: "",
 				IconUrl:     "",
@@ -204,12 +209,12 @@ func GetUserViews(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Items": []gin.H{
 			{
-				"Name":            "Películas",
-				"ServerId":        ServerUUID,
-				"Id":              "12345678-1234-1234-1234-123456789012",
-				"Type":            "CollectionFolder",
-				"CollectionType":  "movies",
-				"ImageTags":       gin.H{},
+				"Name":           "Películas",
+				"ServerId":       ServerUUID,
+				"Id":             "12345678-1234-1234-1234-123456789012",
+				"Type":           "CollectionFolder",
+				"CollectionType": "movies",
+				"ImageTags":      gin.H{},
 				"UserData": gin.H{
 					"PlaybackPositionTicks": 0,
 					"PlayCount":             0,
@@ -223,12 +228,12 @@ func GetUserViews(c *gin.Context) {
 				"PrimaryImageAspectRatio": 1.0,
 			},
 			{
-				"Name":            "Series",
-				"ServerId":        ServerUUID,
-				"Id":              "22345678-1234-1234-1234-123456789012",
-				"Type":            "CollectionFolder",
-				"CollectionType":  "tvshows",
-				"ImageTags":       gin.H{},
+				"Name":           "Series",
+				"ServerId":       ServerUUID,
+				"Id":             "22345678-1234-1234-1234-123456789012",
+				"Type":           "CollectionFolder",
+				"CollectionType": "tvshows",
+				"ImageTags":      gin.H{},
 				"UserData": gin.H{
 					"PlaybackPositionTicks": 0,
 					"PlayCount":             0,
@@ -267,7 +272,7 @@ func getDefaultPolicyDto(isAdmin bool) UserPolicy {
 		IsHidden:                         false,
 		EnableCollectionManagement:       true,
 		EnableSubtitleManagement:         true,
-		EnableLyricManagement:            true,
+		EnableLyricManagement:            false, // Ocultar UI de música y letras
 		IsDisabled:                       false,
 		MaxParentalRating:                0,
 		MaxParentalSubRating:             0,
@@ -279,22 +284,22 @@ func getDefaultPolicyDto(isAdmin bool) UserPolicy {
 		EnableRemoteControlOfOtherUsers:  true,
 		EnableSharedDeviceControl:        true,
 		EnableRemoteAccess:               true,
-		EnableLiveTvManagement:           true,
-		EnableLiveTvAccess:               true,
+		EnableLiveTvManagement:           false, // Ocultar el menú de Live TV
+		EnableLiveTvAccess:               false, // Ocultar el menú de Live TV
 		EnableMediaPlayback:              true,
-		EnableAudioPlaybackTranscoding:   true,
+		EnableAudioPlaybackTranscoding:   false, // Indicar que no manejamos audio puro
 		EnableVideoPlaybackTranscoding:   true,
 		EnablePlaybackRemuxing:           true,
 		ForceRemoteSourceTranscoding:     false,
 		EnableContentDeletion:            true,
 		EnableContentDeletionFromFolders: []string{},
-		EnableContentDownloading:         true,
-		EnableSyncTranscoding:            true,
+		EnableContentDownloading:         false, // Ocultar botones de descarga
+		EnableSyncTranscoding:            false, // Ocultar UI de sincronización/SyncPlay
 		EnableMediaConversion:            true,
 		EnabledDevices:                   []string{},
 		EnableAllDevices:                 true,
 		EnabledChannels:                  []string{},
-		EnableAllChannels:                true,
+		EnableAllChannels:                false, // Ocultar el menú de Canales
 		EnabledFolders:                   []string{},
 		EnableAllFolders:                 true,
 		InvalidLoginAttemptCount:         0,

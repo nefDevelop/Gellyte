@@ -112,6 +112,6 @@ func NotifyLibraryChanged() {
 // NotifyUserDataChanged avisa que el progreso de un item ha cambiado
 func NotifyUserDataChanged(userId string, itemId string) {
 	// Formato de Jellyfin para UserDataChanged
-	msg := fmt.Sprintf(`{"MessageType":"UserDataChanged","Data":{"UserId":"%s","ItemId":"%s"}}`, userId, itemId)
+	msg := fmt.Sprintf(`{"MessageType":"UserDataChanged","Data":{"UserId":"%s","UserDataList":[{"ItemId":"%s"}]}}`, userId, itemId)
 	GlobalHub.Broadcast <- []byte(msg)
 }

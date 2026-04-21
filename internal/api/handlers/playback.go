@@ -5,10 +5,13 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gellyte/gellyte/internal/database"
+	"github.com/gellyte/gellyte/internal/library"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/transcoder"
 	"github.com/gin-gonic/gin"
@@ -37,6 +40,41 @@ func GetPlaybackInfo(c *gin.Context) {
 
 	streamUrl := fmt.Sprintf("/Videos/%s/stream", item.ID)
 
+	// Extraer pistas de audio y subtítulos al vuelo para poblar la UI de Jellyfin
+	mediaStreams := []gin.H{}
+	rawMeta, err := library.GetRawMetadata(item.Path)
+	if err == nil && rawMeta != nil {
+		for _, s := range rawMeta.Streams {
+			lang := ""
+			if s.Tags != nil && s.Tags["language"] != "" {
+				lang = s.Tags["language"]
+			}
+
+			streamType := "Video"
+			if s.CodecType == "audio" {
+				streamType = "Audio"
+			} else if s.CodecType == "subtitle" {
+				streamType = "Subtitle"
+			}
+
+			isDefault := false
+			if s.Disposition != nil && s.Disposition["default"] == 1 {
+				isDefault = true
+			}
+
+			mediaStreams = append(mediaStreams, gin.H{
+				"Type":         streamType,
+				"Index":        s.Index,
+				"Codec":        s.CodecName,
+				"Language":     lang,
+				"IsDefault":    isDefault,
+				"IsInterlaced": false,
+				"Width":        s.Width,
+				"Height":       s.Height,
+			})
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"MediaSources": []gin.H{
 			{
@@ -51,25 +89,14 @@ func GetPlaybackInfo(c *gin.Context) {
 				"SupportsDirectPlay":   true,
 				"SupportsDirectStream": true,
 				"SupportsTranscoding":  true, // Decimos que sí para que la app lo considere
+				"TranscodingUrl":         fmt.Sprintf("/Videos/%s/main.m3u8?VideoCodec=h264&AudioCodec=aac", item.ID),
+				"TranscodingSubProtocol": "hls",
+				"TranscodingContainer":   "ts",
 				"SupportsResume":       true,
 				"DirectStreamUrl":      streamUrl,
 				"RunTimeTicks":         item.RunTimeTicks,
 				"Bitrate":              item.Bitrate,
-				"MediaStreams": []gin.H{
-					{
-						"Type":         "Video",
-						"Codec":        item.VideoCodec,
-						"IsInterlaced": false,
-						"Width":        item.Width,
-						"Height":       item.Height,
-						"BitRate":      item.Bitrate,
-					},
-					{
-						"Type":      "Audio",
-						"Codec":     item.AudioCodec,
-						"IsDefault": true,
-					},
-				},
+				"MediaStreams":         mediaStreams,
 			},
 		},
 		"PlaySessionId": "79b3602d385642d99723ecdbf6a4773a",
@@ -93,6 +120,18 @@ func StreamVideo(c *gin.Context) {
 
 	// Si el cliente pide "Static=true", servimos el archivo original (Direct Play)
 	if c.Query("Static") == "true" {
+		// Asegurar el tipo MIME correcto para ayudar a la compatibilidad del navegador
+		mimeType := "video/" + item.Container
+		if item.Container == "mkv" {
+			mimeType = "video/x-matroska"
+		} else if item.Container == "avi" {
+			mimeType = "video/x-msvideo"
+		} else if item.Container == "m4v" {
+			mimeType = "video/mp4"
+		}
+
+		c.Header("Content-Type", mimeType)
+		// c.File maneja automáticamente los HTTP Range Requests (adelantar/retrasar video)
 		c.File(item.Path)
 		return
 	}
@@ -154,12 +193,14 @@ func ReportPlayingProgress(c *gin.Context) {
 	// Update or Create usando GORM
 	database.DB.Where(&userData).FirstOrCreate(&userData)
 
+	// Solo incrementar la cuenta de reproducciones la primera vez que cruza el umbral del 90%
+	if isPlayed && !userData.Played {
+		userData.PlayCount++
+	}
+
 	userData.PlaybackPositionTicks = req.PositionTicks
 	userData.Played = isPlayed
 	userData.LastPlayedDate = time.Now()
-	if isPlayed {
-		userData.PlayCount++
-	}
 
 	database.DB.Save(&userData)
 
@@ -167,6 +208,56 @@ func ReportPlayingProgress(c *gin.Context) {
 	NotifyUserDataChanged(userId, req.ItemId)
 
 	c.Status(http.StatusNoContent)
+}
+
+// ReportPlayingStopped godoc
+// @Summary Reportar fin de reproducción
+// @Description Notifica al servidor que el usuario cerró el reproductor.
+// @Tags Playback
+// @Success 204 "No Content"
+// @Router /Sessions/Playing/Stopped [post]
+func ReportPlayingStopped(c *gin.Context) {
+	c.Status(http.StatusNoContent)
+}
+
+// parseTranscodeOptions centraliza la lógica inteligente de codec para todas las transmisiones
+func parseTranscodeOptions(c *gin.Context, item models.MediaItem) transcoder.TranscodeOptions {
+	startTimeTicks, _ := strconv.ParseInt(c.Query("startTimeTicks"), 10, 64)
+	bitrate, _ := strconv.ParseInt(c.Query("maxBitrate"), 10, 64)
+
+	audioStreamIndex, _ := strconv.Atoi(c.Query("AudioStreamIndex"))
+	if audioStreamIndex == 0 {
+		audioStreamIndex, _ = strconv.Atoi(c.Query("audioStreamIndex"))
+	}
+
+	subtitleStreamIndex, _ := strconv.Atoi(c.Query("SubtitleStreamIndex"))
+	if subtitleStreamIndex == 0 {
+		subtitleStreamIndex, _ = strconv.Atoi(c.Query("subtitleStreamIndex"))
+	}
+
+	reqVideoCodec := c.Query("VideoCodec")
+	vCodec := "copy"
+
+	if (bitrate > 0 && item.Bitrate > 0 && item.Bitrate > bitrate) ||
+		(reqVideoCodec != "" && item.VideoCodec != "" && !strings.Contains(strings.ToLower(reqVideoCodec), strings.ToLower(item.VideoCodec))) {
+		vCodec = "libx264"
+	}
+
+	reqAudioCodec := c.Query("AudioCodec")
+	aCodec := "copy"
+
+	if reqAudioCodec != "" && item.AudioCodec != "" && !strings.Contains(strings.ToLower(reqAudioCodec), strings.ToLower(item.AudioCodec)) {
+		aCodec = "aac"
+	}
+
+	return transcoder.TranscodeOptions{
+		StartTimeTicks:      startTimeTicks,
+		Bitrate:             bitrate,
+		VideoCodec:          vCodec,
+		AudioCodec:          aCodec,
+		AudioStreamIndex:    audioStreamIndex,
+		SubtitleStreamIndex: subtitleStreamIndex,
+	}
 }
 
 // TranscodeVideo maneja la transcodificación en tiempo real.
@@ -178,16 +269,7 @@ func TranscodeVideo(c *gin.Context) {
 		return
 	}
 
-	// Extraer opciones de la URL (usadas por Jellyfin)
-	startTimeTicks, _ := strconv.ParseInt(c.Query("startTimeTicks"), 10, 64)
-	bitrate, _ := strconv.ParseInt(c.Query("maxBitrate"), 10, 64)
-
-	opts := transcoder.TranscodeOptions{
-		StartTimeTicks: startTimeTicks,
-		Bitrate:        bitrate,
-		VideoCodec:     "libx264",
-		AudioCodec:     "aac",
-	}
+	opts := parseTranscodeOptions(c, item)
 
 	cmd := transcoder.BuildTranscodeCmd(item, opts)
 
@@ -237,7 +319,18 @@ func GetHlsPlaylist(c *gin.Context) {
 
 	segmentDuration := 10 // segundos
 	totalSeconds := item.RunTimeTicks / 10000000
+
+	if totalSeconds == 0 {
+		// Fallback de seguridad por si el archivo no tiene metadatos de duración válidos
+		c.String(http.StatusBadRequest, "Duración del video desconocida")
+		return
+	}
+
 	numSegments := int(totalSeconds / int64(segmentDuration))
+	remainder := totalSeconds % int64(segmentDuration)
+	if remainder > 0 {
+		numSegments++ // Agregar un segmento adicional para el residuo final
+	}
 
 	playlist := "#EXTM3U\n"
 	playlist += "#EXT-X-VERSION:3\n"
@@ -246,7 +339,12 @@ func GetHlsPlaylist(c *gin.Context) {
 	playlist += "#EXT-X-PLAYLIST-TYPE:VOD\n"
 
 	for i := 0; i < numSegments; i++ {
-		playlist += fmt.Sprintf("#EXTINF:%d.0,\n", segmentDuration)
+		duration := segmentDuration
+		// El último segmento debe durar exactamente lo que resta del video, no 10 segundos fijos
+		if i == numSegments-1 && remainder > 0 {
+			duration = int(remainder)
+		}
+		playlist += fmt.Sprintf("#EXTINF:%d.0,\n", duration)
 		playlist += fmt.Sprintf("hls/%d/stream.ts\n", i)
 	}
 
@@ -268,10 +366,7 @@ func GetHlsSegment(c *gin.Context) {
 		return
 	}
 
-	opts := transcoder.TranscodeOptions{
-		VideoCodec: "libx264",
-		AudioCodec: "aac",
-	}
+	opts := parseTranscodeOptions(c, item) // Lógica Remux ahora aplicada a Apple HLS
 
 	cmd := transcoder.BuildHLSSegmentCmd(item, segmentIdx, 10, opts)
 	stdout, err := cmd.StdoutPipe()
@@ -287,11 +382,49 @@ func GetHlsSegment(c *gin.Context) {
 		return
 	}
 
+	// Asegurarse de que el proceso de FFmpeg se termine sin importar cómo acabe la función
+	defer func() {
+		cmd.Process.Kill()
+		cmd.Wait()
+	}()
+
 	c.Header("Content-Type", "video/mp2t")
 	io.Copy(c.Writer, stdout)
-	// Asegurarse de que el proceso de FFmpeg se termine y se espere
-	cmd.Process.Kill()
-	if err := cmd.Wait(); err != nil && err.Error() != "signal: killed" { // Ignorar el error "signal: killed" ya que es esperado después de Kill()
-		log.Printf("[Transcoder] FFmpeg para segmento HLS terminó con error inesperado: %v", err)
+}
+
+// GetSubtitleStream extrae subtítulos embebidos al vuelo en formato WebVTT compatible con web.
+func GetSubtitleStream(c *gin.Context) {
+	id := c.Param("id")
+	indexRaw := c.Param("index")
+	index, err := strconv.Atoi(indexRaw)
+	if err != nil {
+		c.Status(http.StatusBadRequest)
+		return
 	}
+
+	var item models.MediaItem
+	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	cmd := exec.Command("ffmpeg",
+		"-v", "error",
+		"-i", item.Path,
+		"-map", fmt.Sprintf("0:%d", index),
+		"-f", "webvtt",
+		"-",
+	)
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	cmd.Start()
+	defer func() { cmd.Process.Kill(); cmd.Wait() }()
+
+	c.Header("Content-Type", "text/vtt; charset=utf-8")
+	io.Copy(c.Writer, stdout)
 }

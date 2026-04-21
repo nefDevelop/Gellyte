@@ -51,6 +51,7 @@ func GetItems(c *gin.Context) {
 	if parentId == "" {
 		parentId = c.Query("parentId")
 	}
+	parentId = strings.ReplaceAll(parentId, "-", "") // Normalizar UUIDs de Jellyfin
 	itemTypes := c.Query("IncludeItemTypes")
 	if itemTypes == "" {
 		itemTypes = c.Query("includeItemTypes")
@@ -59,8 +60,18 @@ func GetItems(c *gin.Context) {
 	if searchTerm == "" {
 		searchTerm = c.Query("searchTerm")
 	}
+	ids := c.Query("ids")
+	if ids == "" {
+		ids = c.Query("Ids")
+	}
 
 	query := database.DB.Model(&models.MediaItem{})
+
+	// Filtrado directo por IDs específicos (prioritario para el cliente web)
+	if ids != "" {
+		idList := strings.Split(ids, ",")
+		query = query.Where("id IN ?", idList)
+	}
 
 	// Búsqueda por nombre
 	if searchTerm != "" {
@@ -68,9 +79,9 @@ func GetItems(c *gin.Context) {
 	}
 
 	// Filtrado básico por ParentId (ID de la carpeta virtual o carpeta física)
-	if parentId == "12345678-1234-1234-1234-123456789012" {
+	if parentId == "12345678123412341234123456789012" {
 		query = query.Where("type = ?", "Movie")
-	} else if parentId == "22345678-1234-1234-1234-123456789012" {
+	} else if parentId == "22345678123412341234123456789012" {
 		query = query.Where("type = ?", "Series")
 	} else if parentId != "" {
 		// Navegación jerárquica: devolvemos los hijos directos del ParentId
@@ -107,6 +118,12 @@ func GetItems(c *gin.Context) {
 // GetItemImage devuelve la imagen asociada a un item.
 func GetItemImage(c *gin.Context) {
 	id := c.Param("id")
+
+	// Evitar consultas a la base de datos si el cliente envía IDs inválidos de JavaScript
+	if id == "" || id == "undefined" || id == "null" {
+		c.Status(http.StatusNotFound)
+		return
+	}
 
 	var item models.MediaItem
 	if err := database.DB.Where("id = ?", id).First(&item).Error; err != nil {
@@ -152,9 +169,32 @@ func findImage(dir, itemName string) string {
 
 // GetUserPrimaryImage handles requests for user primary images.
 func GetUserPrimaryImage(c *gin.Context) {
-	// For now, return a 404 as we don't have user images implemented.
-	// In a real scenario, you would fetch the user's image based on the ID.
-	c.Status(http.StatusNotFound)
+	userId := c.Param("id")
+	if userId == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	var user models.User
+	if err := database.DB.Where("id = ?", userId).First(&user).Error; err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	initial := "?"
+	if len(user.Username) > 0 {
+		initial = strings.ToUpper(string([]rune(user.Username)[0]))
+	}
+
+	bgColor := "#8e44ad"
+
+	svg := `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="100" fill="` + bgColor + `"/>
+  <text x="100" y="135" font-family="Arial, Helvetica, sans-serif" font-size="100" fill="white" font-weight="bold" text-anchor="middle">` + initial + `</text>
+</svg>`
+
+	c.Data(http.StatusOK, "image/svg+xml", []byte(svg))
 }
 
 // GetSpecialFeatures handles requests for special features.
@@ -195,8 +235,16 @@ func GetMediaSegments(c *gin.Context) {
 func GetItemDetails(c *gin.Context) {
 	id := c.Param("id")
 
+	// Evitar IDs inválidos
+	if id == "" || id == "undefined" || id == "null" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	idNormalized := strings.ReplaceAll(id, "-", "")
+
 	// Manejo de carpetas virtuales (hardcoded por ahora)
-	if id == "12345678-1234-1234-1234-123456789012" {
+	if idNormalized == "12345678123412341234123456789012" {
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Películas",
 			"Id":             id,
@@ -206,7 +254,7 @@ func GetItemDetails(c *gin.Context) {
 		})
 		return
 	}
-	if id == "22345678-1234-1234-1234-123456789012" {
+	if idNormalized == "22345678123412341234123456789012" {
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Series",
 			"Id":             id,
@@ -299,6 +347,7 @@ func GetLatestItems(c *gin.Context) {
 	if parentId == "" {
 		parentId = c.Query("parentId")
 	}
+	parentId = strings.ReplaceAll(parentId, "-", "") // Normalizar UUIDs de Jellyfin
 	itemTypes := c.Query("IncludeItemTypes")
 	if itemTypes == "" {
 		itemTypes = c.Query("includeItemTypes")
@@ -357,7 +406,12 @@ func GetResumeItems(c *gin.Context) {
 
 // GetSuggestions devuelve sugerencias para el usuario (usamos los últimos añadidos por ahora).
 func GetSuggestions(c *gin.Context) {
-	userId := c.GetString("UserID")
+	// El cliente envía el userId como parámetro de consulta.
+	userId := c.Query("userId")
+	if userId == "" {
+		// Si no se especifica, usamos el admin como fallback, igual que en otros handlers.
+		userId = "53896590-3b41-46a4-9591-96b054a8e3f6"
+	}
 
 	var items []models.MediaItem
 	database.DB.Order("created_at desc").Limit(10).Find(&items)
@@ -394,7 +448,8 @@ func mapToDto(item models.MediaItem, userId string) BaseItemDto {
 	// Cargar datos reales del usuario si existe sesión
 	if userId != "" {
 		var dbUserData models.UserItemData
-		if err := database.DB.Where("user_id = ? AND media_item_id = ?", userId, item.ID).First(&dbUserData).Error; err == nil {
+		result := database.DB.Where("user_id = ? AND media_item_id = ?", userId, item.ID).Find(&dbUserData)
+		if result.Error == nil && result.RowsAffected > 0 {
 			userData.PlaybackPositionTicks = dbUserData.PlaybackPositionTicks
 			userData.PlayCount = dbUserData.PlayCount
 			userData.IsFavorite = dbUserData.IsFavorite
@@ -429,6 +484,34 @@ func mapToDto(item models.MediaItem, userId string) BaseItemDto {
 	// Añadir Thumbnail si existe
 	if _, err := os.Stat(filepath.Join(dir, "thumb.jpg")); err == nil {
 		dto.ImageTags["Thumb"] = "thumb-tag"
+	}
+
+	// Para que la interfaz web de Jellyfin muestre el tiempo, resolución y otros badges,
+	// debemos incluir la información técnica en el arreglo MediaSources.
+	if item.RunTimeTicks > 0 {
+		dto.MediaSources = []interface{}{
+			gin.H{
+				"Id":           item.ID,
+				"Protocol":     "Http",
+				"Container":    item.Container,
+				"RunTimeTicks": item.RunTimeTicks,
+				"Bitrate":      item.Bitrate,
+				"MediaStreams": []gin.H{
+					{
+						"Type":   "Video",
+						"Codec":  item.VideoCodec,
+						"Width":  item.Width,
+						"Height": item.Height,
+					},
+					{
+						"Type":  "Audio",
+						"Codec": item.AudioCodec,
+					},
+				},
+			},
+		}
+	} else {
+		dto.MediaSources = []interface{}{}
 	}
 
 	return dto

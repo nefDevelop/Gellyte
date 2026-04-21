@@ -10,9 +10,13 @@ import (
 // FFProbeResult representa la salida simplificada de ffprobe
 type FFProbeResult struct {
 	Streams []struct {
-		CodecName string `json:"codec_name"`
-		Width     int    `json:"width"`
-		Height    int    `json:"height"`
+		Index       int               `json:"index"`
+		CodecType   string            `json:"codec_type"`
+		CodecName   string            `json:"codec_name"`
+		Width       int               `json:"width"`
+		Height      int               `json:"height"`
+		Tags        map[string]string `json:"tags"`
+		Disposition map[string]int    `json:"disposition"`
 	} `json:"streams"`
 	Format struct {
 		Duration string `json:"duration"`
@@ -27,13 +31,14 @@ type VideoMetadata struct {
 	Height        int
 	Bitrate       int64
 	VideoCodec    string
+	AudioCodec    string
 }
 
-// GetVideoMetadata ejecuta ffprobe para extraer información técnica de un archivo de video.
-func GetVideoMetadata(path string) (*VideoMetadata, error) {
+// GetRawMetadata ejecuta ffprobe y devuelve la estructura completa.
+func GetRawMetadata(path string) (*FFProbeResult, error) {
 	cmd := exec.Command("ffprobe",
 		"-v", "error",
-		"-show_entries", "format=duration,bit_rate:stream=codec_name,width,height",
+		"-show_entries", "format=duration,bit_rate:stream=index,codec_type,codec_name,width,height:stream_tags=language,title:stream_disposition=default",
 		"-of", "json=c=1",
 		path)
 
@@ -46,6 +51,16 @@ func GetVideoMetadata(path string) (*VideoMetadata, error) {
 	if err := json.Unmarshal(output, &result); err != nil {
 		return nil, fmt.Errorf("error parseando JSON de ffprobe: %v", err)
 	}
+	return &result, nil
+}
+
+// GetVideoMetadata ejecuta ffprobe para extraer información técnica de un archivo de video.
+func GetVideoMetadata(path string) (*VideoMetadata, error) {
+	resultPtr, err := GetRawMetadata(path)
+	if err != nil {
+		return nil, err
+	}
+	result := *resultPtr
 
 	metadata := &VideoMetadata{}
 
@@ -61,13 +76,14 @@ func GetVideoMetadata(path string) (*VideoMetadata, error) {
 		metadata.Bitrate, _ = strconv.ParseInt(result.Format.BitRate, 10, 64)
 	}
 
-	// Extraer datos del primer stream de video
+	// Extraer datos de los streams (video y audio)
 	for _, stream := range result.Streams {
-		if stream.Width > 0 { // Es un stream de video
+		if stream.CodecType == "video" && metadata.VideoCodec == "" {
 			metadata.Width = stream.Width
 			metadata.Height = stream.Height
 			metadata.VideoCodec = stream.CodecName
-			break
+		} else if stream.CodecType == "audio" && metadata.AudioCodec == "" {
+			metadata.AudioCodec = stream.CodecName
 		}
 	}
 

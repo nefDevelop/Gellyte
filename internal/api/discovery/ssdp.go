@@ -57,9 +57,8 @@ func (s *SSDPServer) respond(dest *net.UDPAddr) {
 	}
 	defer conn.Close()
 
-	// Location debe apuntar a la IP real del servidor.
-	// Aquí usamos una simplificación; en producción se detectaría la IP de la interfaz.
-	location := fmt.Sprintf("http://localhost:%d/System/Info/Public", s.Port)
+	localIP := GetLocalIP()
+	location := fmt.Sprintf("http://%s:%d/System/Info/Public", localIP, s.Port)
 
 	response := fmt.Sprintf(
 		"HTTP/1.1 200 OK\r\n"+
@@ -74,4 +73,15 @@ func (s *SSDPServer) respond(dest *net.UDPAddr) {
 	)
 
 	conn.Write([]byte(response))
+}
+
+// GetLocalIP descubre la IP local de la máquina en la red
+func GetLocalIP() string {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "127.0.0.1"
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String()
 }

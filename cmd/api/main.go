@@ -10,11 +10,9 @@ import (
 	"github.com/gellyte/gellyte/internal/api/middleware"
 	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/library"
-	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	"gorm.io/gorm"
 )
 
 // @title Gellyte API
@@ -24,10 +22,11 @@ import (
 // @BasePath /
 func main() {
 	database.InitDB()
-	seedDatabase()
 
 	// Iniciar el Hub de WebSockets
 	go handlers.GlobalHub.Run()
+
+	library.OnLibraryChanged = handlers.NotifyLibraryChanged
 
 	go func() {
 		ssdp := discovery.SSDPServer{Port: 8081, ServerID: handlers.ServerUUID}
@@ -54,6 +53,10 @@ func main() {
 	r.GET("/System/Info", handlers.GetSystemInfo)
 	r.GET("/system/info", handlers.GetSystemInfo)
 	r.GET("/emby/System/Info", handlers.GetSystemInfo)
+	r.GET("/System/Ping", handlers.GetPingSystem)
+	r.GET("/system/ping", handlers.GetPingSystem)
+	r.GET("/Moonfin/Ping", handlers.GetPingSystem)
+	r.GET("/moonfin/ping", handlers.GetPingSystem)
 
 	// Usuarios y Auth
 	r.GET("/Users/Public", handlers.GetPublicUsers)
@@ -106,9 +109,12 @@ func main() {
 	r.GET("/items/:id/images/:imageType", handlers.GetItemImage)
 	r.POST("/Sessions/Playing", handlers.ReportPlaying)
 	r.POST("/Sessions/Playing/Progress", handlers.ReportPlayingProgress)
+	r.POST("/Sessions/Playing/Stopped", handlers.ReportPlayingStopped)
 	r.GET("/Sessions", handlers.GetSessions)
 	r.GET("/sessions", handlers.GetSessions)
 	r.GET("/emby/Sessions", handlers.GetSessions)
+	r.GET("/Videos/:id/:mediaSourceId/Subtitles/:index/0/Stream.vtt", handlers.GetSubtitleStream)
+	r.GET("/Videos/:id/:mediaSourceId/Subtitles/:index/Stream.vtt", handlers.GetSubtitleStream)
 
 	// Otros
 	r.GET("/Videos/:id/main.m3u8", handlers.GetHlsPlaylist)
@@ -169,29 +175,5 @@ func main() {
 	log.Println("Gellyte server starting on :8081")
 	if err := r.Run(":8081"); err != nil {
 		log.Fatal("Failed to run server: ", err)
-	}
-}
-
-func seedDatabase() {
-	// Comprueba si el usuario admin existe
-	var user models.User
-	err := database.DB.Where("username = ?", "admin").First(&user).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// El usuario Admin no existe, lo creamos
-			log.Println("Usuario admin no encontrado, creando uno...")
-			adminUser := models.User{
-				ID:       handlers.AdminUUID,
-				Username: "admin",
-				Password: "admin",
-				IsAdmin:  true,
-			}
-			if err := database.DB.Create(&adminUser).Error; err != nil {
-				log.Fatalf("Fallo al crear el usuario admin: %v", err)
-			}
-			log.Println("Usuario admin creado con éxito.")
-		} else {
-			log.Fatalf("Fallo al comprobar la existencia del usuario admin: %v", err)
-		}
 	}
 }

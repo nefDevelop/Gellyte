@@ -7,10 +7,12 @@ import (
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/gellyte/gellyte/internal/api/handlers"
 	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/models"
 )
+
+// OnLibraryChanged is called when a change is detected in the library.
+var OnLibraryChanged func()
 
 // WatchFolder inicia el monitoreo de una carpeta de medios en tiempo real.
 func WatchFolder(path string, libType string) {
@@ -43,6 +45,7 @@ func WatchFolder(path string, libType string) {
 					info, err := os.Stat(event.Name)
 					if err == nil {
 						if info.IsDir() {
+							watcher.Add(event.Name) // Monitorizar la subcarpeta nueva en tiempo real
 							processDirectory(event.Name, libType, path)
 							// Escaneo recursivo inicial de la nueva carpeta
 							scanInitial(event.Name, libType, path)
@@ -50,8 +53,8 @@ func WatchFolder(path string, libType string) {
 							processFile(event.Name, libType, path)
 						}
 					}
-				} else if event.Op&fsnotify.Remove == fsnotify.Remove {
-					removeItem(event.Name)
+				} else if event.Op&fsnotify.Remove == fsnotify.Remove || event.Op&fsnotify.Rename == fsnotify.Rename {
+					removeItem(event.Name, path)
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
@@ -62,10 +65,13 @@ func WatchFolder(path string, libType string) {
 		}
 	}()
 
-	err = watcher.Add(path)
-	if err != nil {
-		log.Fatal("Error añadiendo carpeta al monitor: ", err)
-	}
+	// Añadir la carpeta principal y todas sus subcarpetas existentes al monitor
+	filepath.Walk(path, func(walkPath string, info os.FileInfo, err error) error {
+		if err == nil && info.IsDir() {
+			watcher.Add(walkPath)
+		}
+		return nil
+	})
 
 	// Escaneo inicial rápido
 	log.Println("Iniciando escaneo inicial de:", path)
@@ -135,6 +141,9 @@ func processFile(path string, libType string, libRoot string) {
 			newItem.Height = meta.Height
 			newItem.Bitrate = meta.Bitrate
 			newItem.VideoCodec = meta.VideoCodec
+			newItem.AudioCodec = meta.AudioCodec
+		} else {
+			log.Printf("[Scanner] Advertencia: No se extrajeron metadatos de '%s'. ¿Está ffprobe instalado? Error: %v", name, err)
 		}
 
 		// Buscar metadatos en archivo .nfo
@@ -153,7 +162,9 @@ func processFile(path string, libType string, libRoot string) {
 		}
 
 		database.DB.Create(&newItem)
-		handlers.NotifyLibraryChanged()
+		if OnLibraryChanged != nil {
+			OnLibraryChanged()
+		}
 	}
 }
 
@@ -198,13 +209,21 @@ func processDirectory(path string, libType string, libRoot string) {
 
 	database.DB.Create(&newItem)
 	//log.Printf("[Library] Carpeta detectada: %s (%s)", name, itemType)
-	handlers.NotifyLibraryChanged()
+	if OnLibraryChanged != nil {
+		OnLibraryChanged()
+	}
 }
 
 // removeItem elimina un archivo de la base de datos si es borrado del disco.
-func removeItem(path string) {
-	database.DB.Where("path = ?", path).Delete(&models.MediaItem{})
-	//log.Printf("[Library] Item eliminado: %s", filepath.Base(path))
+func removeItem(itemPath string, libRoot string) {
+	// Protección contra desconexión de disco duro:
+	// Verificamos si la raíz de la biblioteca sigue accesible.
+	// Si el disco se desconectó, la raíz dará error y evitamos borrar la base de datos.
+	if _, err := os.Stat(libRoot); os.IsNotExist(err) {
+		return
+	}
+
+	database.DB.Where("path = ?", itemPath).Delete(&models.MediaItem{})
 }
 
 func isVideoFile(path string) bool {

@@ -1,7 +1,8 @@
 package models
 
 import (
-	"fmt"
+	"crypto/md5"
+	"encoding/hex"
 	"time"
 
 	"gorm.io/gorm"
@@ -31,9 +32,11 @@ type MediaItem struct {
 // BeforeCreate genera un ID único para el item antes de guardarlo en la DB.
 func (m *MediaItem) BeforeCreate(tx *gorm.DB) (err error) {
 	if m.ID == "" {
-		// Generamos un ID basado en el tiempo actual (nanosegundos)
-		// Suficiente para este MVP.
-		m.ID = fmt.Sprintf("%x", time.Now().UnixNano())
+		// Jellyfin exige UUIDs estándar de 32 caracteres (formato hexadecimal sin guiones).
+		// Un hash MD5 de la ruta garantiza 32 caracteres y hace que el ID sea determinista,
+		// evitando que el usuario pierda su progreso de visualización si se re-escanea.
+		hash := md5.Sum([]byte(m.Path))
+		m.ID = hex.EncodeToString(hash[:])
 	}
 	return
 }

@@ -5,7 +5,7 @@ type User struct {
 	ID       string `gorm:"primaryKey" json:"Id"`
 	Username string `gorm:"uniqueIndex" json:"Name"`
 	Password string `json:"-"`
-	IsAdmin  bool   `json:"HasPassword"`
+	IsAdmin  bool   `json:"IsAdmin"`
 }
 
 // GORM utiliza una tabla de base de datos llamada 'users' por defecto.
