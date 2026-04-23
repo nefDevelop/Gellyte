@@ -11,7 +11,7 @@ dev: swagger run
 # Levantar la API directamente
 run:
 	@echo "=> Iniciando el servidor Gellyte (Gin API)..."
-	go run cmd/api/main.go
+	go run ./cmd/api serve
 
 # Generar la documentación de Swagger
 swagger:
@@ -25,7 +25,7 @@ swagger:
 # Construir el binario (similar a la stage 1 del Dockerfile)
 build: swagger
 	@echo "=> Compilando el binario..."
-	go build -o $(BINARY_NAME) cmd/api/main.go
+	go build -o $(BINARY_NAME) ./cmd/api
 
 # Limpiar archivos generados
 clean:
