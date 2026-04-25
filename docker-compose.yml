@@ -15,7 +15,13 @@ services:
       - ./config:/app/config:Z
     # Optional: For Podman rootless, you might want to match your host UID inside
     # userns_mode: "keep-id"
+    devices:
+      # Passthrough de GPU para aceleración por hardware (VAAPI)
+      - /dev/dri:/dev/dri
     environment:
       - TZ=Europe/Madrid
       - DB_PATH=/app/config/gellyte.db
+      # Opcional: configurar estas variables si se prefiere no tocar el config.yaml
+      # - GELLYTE_TRANSCODER_HARDWARE_ACCELERATION=vaapi
+      # - GELLYTE_TRANSCODER_DEFAULT_CODEC=h264_vaapi
     restart: unless-stopped

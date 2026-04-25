@@ -19,8 +19,8 @@ RUN CGO_ENABLED=1 GOOS=linux go build -o gellyte ./cmd/api
 # --- Stage 2: Final image ---
 FROM alpine:3.19
 
-# Install runtime dependencies: FFmpeg and SSL certificates
-RUN apk add --no-cache ffmpeg ca-certificates tzdata
+# Install runtime dependencies: FFmpeg, SSL certificates and VAAPI drivers
+RUN apk add --no-cache ffmpeg ca-certificates tzdata libva-intel-driver libva-mesa-driver mesa-va-gallium
 
 # Create a non-root user 'gellyte' with UID 1000
 RUN adduser -D -u 1000 gellyte

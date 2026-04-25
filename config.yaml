@@ -14,8 +14,8 @@ jellyfin:
 transcoder:
   ffmpeg_path: "/usr/bin/ffmpeg"
   ffprobe_path: "/usr/bin/ffprobe"
-  hardware_acceleration: "" # Opciones: "vaapi", "nvenc"
-  default_codec: "libx264"   # Opciones: "libx264", "h264_vaapi", "h264_nvenc"
+  hardware_acceleration: "vaapi" # Opciones: "vaapi", "nvenc"
+  default_codec: "h264_vaapi"   # Opciones: "libx264", "h264_vaapi"
 
 library:
   movies_path: "./media/peliculas"
