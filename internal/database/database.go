@@ -6,6 +6,7 @@ import (
 
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -37,10 +38,11 @@ func InitDB() {
 	var count int64
 	DB.Model(&models.User{}).Count(&count)
 	if count == 0 {
+		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
 		admin := models.User{
 			ID:       config.AppConfig.Jellyfin.AdminUUID,
 			Username: "admin",
-			Password: "admin",
+			Password: string(hashedPassword),
 			IsAdmin:  true,
 		}
 		DB.Create(&admin)

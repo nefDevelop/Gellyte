@@ -3,6 +3,7 @@ package services
 import (
 	"testing"
 
+	"golang.org/x/crypto/bcrypt"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/repository"
 	"gorm.io/driver/sqlite"
@@ -19,10 +20,11 @@ func setupAuthTest() (AuthService, *gorm.DB) {
 func TestAuthService(t *testing.T) {
 	service, db := setupAuthTest()
 
+	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	user := &models.User{
 		ID:       "1",
 		Username: "testuser",
-		Password: "password123",
+		Password: string(hashed),
 	}
 	db.Create(user)
 

@@ -10,7 +10,7 @@ import (
 
 func setupMediaTestDB() *gorm.DB {
 	db, _ := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{})
-	db.AutoMigrate(&models.MediaItem{})
+	db.AutoMigrate(&models.MediaItem{}, &models.MediaStream{})
 	return db
 }
 

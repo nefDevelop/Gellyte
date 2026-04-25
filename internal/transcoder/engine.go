@@ -27,12 +27,7 @@ func BuildTranscodeCmd(item models.MediaItem, opts TranscodeOptions) *exec.Cmd {
 	}
 
 	// Optimizaciones de hardware
-	hw := config.AppConfig.Transcoder.HardwareAcceleration
-	if hw == "vaapi" {
-		args = append(args, "-hwaccel", "vaapi", "-hwaccel_device", "/dev/dri/renderD128", "-hwaccel_output_format", "vaapi")
-	} else if hw == "nvenc" {
-		args = append(args, "-hwaccel", "cuda", "-hwaccel_output_format", "cuda")
-	}
+	args = append(args, getHWAccelArgs()...)
 
 	// Posición de inicio (Seeking)
 	if opts.StartTimeTicks > 0 {
@@ -102,11 +97,17 @@ func BuildHLSSegmentCmd(item models.MediaItem, segmentIndex int, segmentDuration
 
 	args := []string{
 		"-v", "error",
+	}
+
+	// Optimizaciones de hardware para HLS
+	args = append(args, getHWAccelArgs()...)
+
+	args = append(args,
 		"-ss", strconv.Itoa(startTime),
 		"-t", strconv.Itoa(segmentDuration),
 		"-i", item.Path,
 		"-copyts", // Mantener timestamps para sincronización
-	}
+	)
 
 	// Configuración inteligente de Video para HLS (Remux vs Transcode)
 	if opts.VideoCodec == "copy" {
@@ -138,4 +139,14 @@ func BuildHLSSegmentCmd(item models.MediaItem, segmentIndex int, segmentDuration
 	args = append(args, "-f", "mpegts", "-")
 
 	return exec.Command(config.AppConfig.Transcoder.FFmpegPath, args...)
+}
+
+func getHWAccelArgs() []string {
+	hw := config.AppConfig.Transcoder.HardwareAcceleration
+	if hw == "vaapi" {
+		return []string{"-hwaccel", "vaapi", "-hwaccel_device", "/dev/dri/renderD128", "-hwaccel_output_format", "vaapi"}
+	} else if hw == "nvenc" {
+		return []string{"-hwaccel", "cuda", "-hwaccel_output_format", "cuda"}
+	}
+	return nil
 }

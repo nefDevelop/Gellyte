@@ -8,6 +8,7 @@ import (
 
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/repository"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService interface {
@@ -30,8 +31,12 @@ func (s *authService) Authenticate(username, password, deviceID string) (*models
 		return nil, "", errors.New("usuario no encontrado")
 	}
 
-	if user.Password != "" && password != user.Password {
-		return nil, "", errors.New("password incorrecta")
+	// Verificar password usando bcrypt
+	if user.Password != "" {
+		err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+		if err != nil {
+			return nil, "", errors.New("password incorrecta")
+		}
 	}
 
 	// Generar un token único de sesión (32 chars hex sin guiones)

@@ -10,6 +10,7 @@ import (
 	"github.com/gellyte/gellyte/internal/database"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func setupAuthRouter() (*gin.Engine, *Handler) {
@@ -52,10 +53,11 @@ func TestGetPublicUsers(t *testing.T) {
 
 func TestAuthenticateByName(t *testing.T) {
 	setupTestDB()
+	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	database.DB.Create(&models.User{
 		ID:       "u1",
 		Username: "user1",
-		Password: "password123",
+		Password: string(hashed),
 	})
 
 	r, _ := setupAuthRouter()

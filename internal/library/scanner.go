@@ -109,6 +109,13 @@ func init() {
 	}
 }
 
+// StopScanner detiene los workers de forma limpia.
+func StopScanner() {
+	close(scanQueue)
+	workerWg.Wait()
+	log.Println("[Scanner] Workers detenidos correctamente.")
+}
+
 func scanWorker() {
 	for task := range scanQueue {
 		if task.isDir {
