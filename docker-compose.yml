@@ -8,10 +8,13 @@ services:
       "8081:8081"
     volumes:
       # Mount your media libraries
-      - /path/to/your/movies:/app/media/peliculas
-      - /path/to/your/series:/app/media/series
+      # Use :Z for SELinux compatibility (Podman/Fedora)
+      - /path/to/your/movies:/app/media/peliculas:Z
+      - /path/to/your/series:/app/media/series:Z
       # Persistence for the database
-      - ./config:/app/config
+      - ./config:/app/config:Z
+    # Optional: For Podman rootless, you might want to match your host UID inside
+    # userns_mode: "keep-id"
     environment:
       - TZ=Europe/Madrid
       - DB_PATH=/app/config/gellyte.db
