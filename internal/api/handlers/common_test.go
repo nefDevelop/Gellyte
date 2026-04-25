@@ -24,7 +24,7 @@ func setupTestDB() {
 
 	// Iniciar una base de datos SQLite efímera en memoria RAM
 	db, _ := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{})
-	db.AutoMigrate(&models.User{}, &models.MediaItem{}, &models.UserItemData{})
+	db.AutoMigrate(&models.User{}, &models.MediaItem{}, &models.MediaStream{}, &models.UserItemData{})
 	database.DB = db // Sobrescribir la variable global para los tests
 	
 	hubOnce.Do(func() {

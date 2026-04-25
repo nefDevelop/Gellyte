@@ -26,8 +26,10 @@ type Config struct {
 	} `mapstructure:"jellyfin"`
 
 	Transcoder struct {
-		FFmpegPath  string `mapstructure:"ffmpeg_path"`
-		FFprobePath string `mapstructure:"ffprobe_path"`
+		FFmpegPath           string `mapstructure:"ffmpeg_path"`
+		FFprobePath          string `mapstructure:"ffprobe_path"`
+		HardwareAcceleration string `mapstructure:"hardware_acceleration"` // "", "vaapi", "nvenc"
+		DefaultCodec         string `mapstructure:"default_codec"`         // "libx264", "h264_vaapi", "h264_nvenc"
 	} `mapstructure:"transcoder"`
 
 	Library struct {
@@ -61,6 +63,8 @@ func InitConfig() {
 	viper.SetDefault("jellyfin.series_library_id", "22345678-1234-1234-1234-123456789012")
 	viper.SetDefault("transcoder.ffmpeg_path", "/usr/bin/ffmpeg")
 	viper.SetDefault("transcoder.ffprobe_path", "/usr/bin/ffprobe")
+	viper.SetDefault("transcoder.hardware_acceleration", "")
+	viper.SetDefault("transcoder.default_codec", "libx264")
 	viper.SetDefault("library.movies_path", "./media/peliculas")
 	viper.SetDefault("library.series_path", "./media/series")
 

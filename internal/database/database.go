@@ -23,9 +23,15 @@ func InitDB() {
 		log.Fatal("Error conectando a la base de datos: ", err)
 	}
 
-	err = DB.AutoMigrate(&models.User{}, &models.MediaItem{}, &models.UserItemData{})
+	err = DB.AutoMigrate(&models.User{}, &models.MediaItem{}, &models.MediaStream{}, &models.UserItemData{})
 	if err != nil {
 		log.Fatal("Error en la migración de base de datos: ", err)
+	}
+
+	// Optimización para SQLite: Solo un escritor a la vez
+	sqlDB, err := DB.DB()
+	if err == nil {
+		sqlDB.SetMaxOpenConns(1)
 	}
 
 	var count int64

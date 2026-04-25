@@ -26,6 +26,14 @@ func BuildTranscodeCmd(item models.MediaItem, opts TranscodeOptions) *exec.Cmd {
 		"-v", "error",
 	}
 
+	// Optimizaciones de hardware
+	hw := config.AppConfig.Transcoder.HardwareAcceleration
+	if hw == "vaapi" {
+		args = append(args, "-hwaccel", "vaapi", "-hwaccel_device", "/dev/dri/renderD128", "-hwaccel_output_format", "vaapi")
+	} else if hw == "nvenc" {
+		args = append(args, "-hwaccel", "cuda", "-hwaccel_output_format", "cuda")
+	}
+
 	// Posición de inicio (Seeking)
 	if opts.StartTimeTicks > 0 {
 		startTimeSec := float64(opts.StartTimeTicks) / 10000000.0

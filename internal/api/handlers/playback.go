@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/gellyte/gellyte/internal/config"
-	"github.com/gellyte/gellyte/internal/library"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/transcoder"
 	"github.com/gin-gonic/gin"
@@ -29,37 +28,16 @@ func (h *Handler) GetPlaybackInfo(c *gin.Context) {
 	streamUrl := fmt.Sprintf("/Videos/%s/stream", item.ID)
 
 	mediaStreams := []gin.H{}
-	rawMeta, err := library.GetRawMetadata(item.Path)
-	if err == nil && rawMeta != nil {
-		for _, s := range rawMeta.Streams {
-			lang := ""
-			if s.Tags != nil && s.Tags["language"] != "" {
-				lang = s.Tags["language"]
-			}
-
-			streamType := "Video"
-			if s.CodecType == "audio" {
-				streamType = "Audio"
-			} else if s.CodecType == "subtitle" {
-				streamType = "Subtitle"
-			}
-
-			isDefault := false
-			if s.Disposition != nil && s.Disposition["default"] == 1 {
-				isDefault = true
-			}
-
-			mediaStreams = append(mediaStreams, gin.H{
-				"Type":         streamType,
-				"Index":        s.Index,
-				"Codec":        s.CodecName,
-				"Language":     lang,
-				"IsDefault":    isDefault,
-				"IsInterlaced": false,
-				"Width":        s.Width,
-				"Height":       s.Height,
-			})
-		}
+	for _, s := range item.MediaStreams {
+		mediaStreams = append(mediaStreams, gin.H{
+			"Type":      s.Type,
+			"Index":     s.Index,
+			"Codec":     s.Codec,
+			"Language":  s.Language,
+			"IsDefault": s.IsDefault,
+			"Width":     s.Width,
+			"Height":    s.Height,
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -173,7 +151,7 @@ func parseTranscodeOptions(c *gin.Context, item models.MediaItem) transcoder.Tra
 
 	if (bitrate > 0 && item.Bitrate > 0 && item.Bitrate > bitrate) ||
 		(reqVideoCodec != "" && item.VideoCodec != "" && !strings.Contains(strings.ToLower(reqVideoCodec), strings.ToLower(item.VideoCodec))) {
-		vCodec = "libx264"
+		vCodec = config.AppConfig.Transcoder.DefaultCodec
 	}
 
 	reqAudioCodec := c.Query("AudioCodec")
@@ -330,7 +308,7 @@ func (h *Handler) GetSubtitleStream(c *gin.Context) {
 		return
 	}
 
-	cmd := exec.Command("ffmpeg",
+	cmd := exec.Command(config.AppConfig.Transcoder.FFmpegPath,
 		"-v", "error",
 		"-i", item.Path,
 		"-map", fmt.Sprintf("0:%d", index),

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gellyte/gellyte/internal/config"
+	"github.com/gellyte/gellyte/internal/models"
 )
 
 // FFProbeResult representa la salida simplificada de ffprobe
@@ -34,6 +35,7 @@ type VideoMetadata struct {
 	Bitrate       int64
 	VideoCodec    string
 	AudioCodec    string
+	Streams       []models.MediaStream
 }
 
 // GetRawMetadata ejecuta ffprobe y devuelve la estructura completa.
@@ -78,14 +80,46 @@ func GetVideoMetadata(path string) (*VideoMetadata, error) {
 		metadata.Bitrate, _ = strconv.ParseInt(result.Format.BitRate, 10, 64)
 	}
 
-	// Extraer datos de los streams (video y audio)
-	for _, stream := range result.Streams {
-		if stream.CodecType == "video" && metadata.VideoCodec == "" {
-			metadata.Width = stream.Width
-			metadata.Height = stream.Height
-			metadata.VideoCodec = stream.CodecName
-		} else if stream.CodecType == "audio" && metadata.AudioCodec == "" {
-			metadata.AudioCodec = stream.CodecName
+	// Extraer datos de los flujos (video, audio, subtítulos)
+	for _, s := range result.Streams {
+		streamType := ""
+		switch s.CodecType {
+		case "video":
+			streamType = "Video"
+			if metadata.VideoCodec == "" {
+				metadata.Width = s.Width
+				metadata.Height = s.Height
+				metadata.VideoCodec = s.CodecName
+			}
+		case "audio":
+			streamType = "Audio"
+			if metadata.AudioCodec == "" {
+				metadata.AudioCodec = s.CodecName
+			}
+		case "subtitle":
+			streamType = "Subtitle"
+		}
+
+		if streamType != "" {
+			lang := ""
+			if s.Tags != nil {
+				lang = s.Tags["language"]
+			}
+
+			isDefault := false
+			if s.Disposition != nil && s.Disposition["default"] == 1 {
+				isDefault = true
+			}
+
+			metadata.Streams = append(metadata.Streams, models.MediaStream{
+				Type:      streamType,
+				Index:     s.Index,
+				Codec:     s.CodecName,
+				Language:  lang,
+				IsDefault: isDefault,
+				Width:     s.Width,
+				Height:    s.Height,
+			})
 		}
 	}
 

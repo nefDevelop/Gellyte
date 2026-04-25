@@ -56,3 +56,21 @@ func TestBuildHLSSegmentCmd(t *testing.T) {
 		t.Errorf("expected vcopy, got %s", args)
 	}
 }
+
+func TestBuildTranscodeCmd_HWACCEL(t *testing.T) {
+	config.AppConfig.Transcoder.FFmpegPath = "ffmpeg"
+	config.AppConfig.Transcoder.HardwareAcceleration = "vaapi"
+	
+	item := models.MediaItem{Path: "/video.mp4"}
+	opts := TranscodeOptions{VideoCodec: "h264_vaapi"}
+
+	cmd := BuildTranscodeCmd(item, opts)
+	args := strings.Join(cmd.Args, " ")
+
+	if !strings.Contains(args, "-hwaccel vaapi") {
+		t.Errorf("expected -hwaccel vaapi in args, got %s", args)
+	}
+	if !strings.Contains(args, "-hwaccel_device /dev/dri/renderD128") {
+		t.Errorf("expected vaapi device in args, got %s", args)
+	}
+}

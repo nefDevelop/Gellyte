@@ -26,7 +26,7 @@ func NewMediaRepository(db *gorm.DB) MediaRepository {
 
 func (r *GormMediaRepository) GetByID(id string) (*models.MediaItem, error) {
 	var item models.MediaItem
-	if err := r.db.Where("id = ?", id).First(&item).Error; err != nil {
+	if err := r.db.Preload("MediaStreams").Where("id = ?", id).First(&item).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil

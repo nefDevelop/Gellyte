@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"sync"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/database"
@@ -47,11 +48,11 @@ func WatchFolder(path string, libType string) {
 					if err == nil {
 						if info.IsDir() {
 							watcher.Add(event.Name) // Monitorizar la subcarpeta nueva en tiempo real
-							processDirectory(event.Name, libType, path)
+							enqueueTask(event.Name, libType, path, true)
 							// Escaneo recursivo inicial de la nueva carpeta
 							scanInitial(event.Name, libType, path)
 						} else {
-							processFile(event.Name, libType, path)
+							enqueueTask(event.Name, libType, path, false)
 						}
 					}
 				} else if event.Op&fsnotify.Remove == fsnotify.Remove || event.Op&fsnotify.Rename == fsnotify.Rename {
@@ -88,18 +89,52 @@ func ScanManual(path string, libType string) {
 	scanInitial(path, libType, path)
 }
 
-// scanInitial recorre la carpeta una vez al inicio.
+type scanTask struct {
+	path    string
+	libType string
+	libRoot string
+	isDir   bool
+}
+
+var (
+	scanQueue chan scanTask
+	workerWg  sync.WaitGroup
+)
+
+func init() {
+	// Inicializar cola y workers (ej. 4 workers)
+	scanQueue = make(chan scanTask, 100)
+	for i := 0; i < 4; i++ {
+		go scanWorker()
+	}
+}
+
+func scanWorker() {
+	for task := range scanQueue {
+		if task.isDir {
+			processDirectory(task.path, task.libType, task.libRoot)
+		} else {
+			processFile(task.path, task.libType, task.libRoot)
+		}
+		workerWg.Done()
+	}
+}
+
+func enqueueTask(path string, libType string, libRoot string, isDir bool) {
+	workerWg.Add(1)
+	scanQueue <- scanTask{path, libType, libRoot, isDir}
+}
+
+// scanInitial recorre la carpeta una vez al inicio utilizando WalkDir (más rápido).
 func scanInitial(root string, libType string, libRoot string) {
-	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err == nil {
-			if info.IsDir() {
-				processDirectory(path, libType, libRoot)
-			} else {
-				processFile(path, libType, libRoot)
-			}
+			enqueueTask(path, libType, libRoot, d.IsDir())
 		}
 		return nil
 	})
+	// Esperar a que terminen los workers si es un escaneo manual/inicial síncrono
+	// workerWg.Wait() 
 }
 
 // processFile añade o actualiza un archivo en la base de datos si es video.
@@ -149,6 +184,7 @@ func processFile(path string, libType string, libRoot string) {
 			newItem.Bitrate = meta.Bitrate
 			newItem.VideoCodec = meta.VideoCodec
 			newItem.AudioCodec = meta.AudioCodec
+			newItem.MediaStreams = meta.Streams
 		} else {
 			log.Printf("[Scanner] Advertencia: No se extrajeron metadatos de '%s'. ¿Está ffprobe instalado? Error: %v", name, err)
 		}

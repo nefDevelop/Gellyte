@@ -30,8 +30,23 @@ type MediaItem struct {
 	SeriesName        string `json:"SeriesName,omitempty"`
 	SeriesID          string `json:"SeriesId,omitempty"`
 	SeasonName        string `json:"SeasonName,omitempty"`
+	MediaStreams      []MediaStream `gorm:"foreignKey:MediaItemID;constraint:OnDelete:CASCADE" json:"MediaStreams,omitempty"`
 	CreatedAt      time.Time `json:"-"`
 	UpdatedAt      time.Time `json:"-"`
+}
+
+// MediaStream representa una pista técnica (Audio, Video, Subtítulo) dentro de un archivo.
+type MediaStream struct {
+	ID           uint   `gorm:"primaryKey" json:"-"`
+	MediaItemID  string `gorm:"index" json:"-"`
+	Type         string `json:"Type"` // Video, Audio, Subtitle
+	Index        int    `json:"Index"`
+	Codec        string `json:"Codec"`
+	Language     string `json:"Language,omitempty"`
+	IsDefault    bool   `json:"IsDefault"`
+	Width        int    `json:"Width,omitempty"`
+	Height       int    `json:"Height,omitempty"`
+	Bitrate      int64  `json:"Bitrate,omitempty"`
 }
 
 // BeforeCreate genera un ID único para el item antes de guardarlo en la DB.
