@@ -20,8 +20,14 @@ get_goroutines
 echo "-----------------------------------"
 
 echo "Fase 1: Extrayendo todos los IDs de medios..."
-ALL_IDS=$(curl -s "$SERVER_URL/Items" | jq -r '.Items[].Id')
-COUNT=$(echo "$ALL_IDS" | wc -l)
+# Versión sin jq para máxima compatibilidad
+ALL_IDS=$(curl -s "$SERVER_URL/Items" | grep -o '"Id":"[^"]*"' | sed 's/"Id":"//;s/"//g')
+COUNT=$(echo "$ALL_IDS" | grep -v '^$' | wc -l)
+
+if [ "$COUNT" -eq 0 ]; then
+    echo "ERROR: No se han encontrado ítems en el servidor. ¿Está el escáner todavía trabajando?"
+    exit 1
+fi
 echo "Encontrados $COUNT ítems para el test."
 
 echo "Fase 2: Carga masiva de Metadatos (500 peticiones en paralelo)..."
