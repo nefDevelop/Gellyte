@@ -8,7 +8,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"runtime"
+	"runtime/debug"
 	"time"
+
+	_ "net/http/pprof"
 
 	_ "github.com/gellyte/gellyte/docs"
 	"github.com/gellyte/gellyte/internal/api/discovery"
@@ -41,6 +45,9 @@ func runServe() {
 	// Iniciar Configuración
 	config.InitConfig()
 
+	// Configurar Gin en modo Release para ahorrar memoria y mejorar performance
+	gin.SetMode(gin.ReleaseMode)
+
 	// Iniciar Base de Datos
 	database.InitDB()
 
@@ -71,6 +78,9 @@ func runServe() {
 	go library.WatchFolder(config.AppConfig.Library.SeriesPath, "series")
 
 	r := gin.Default()
+
+	// Profiling (pprof) - Solo accesible internamente o vía debug
+	r.GET("/debug/pprof/*any", gin.WrapH(http.DefaultServeMux))
 
 	r.Use(middleware.CORSMiddleware())
 	r.Use(middleware.ResponseLoggerMiddleware())
@@ -210,6 +220,15 @@ func runServe() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}
+	}()
+
+	// Tarea en segundo plano para liberar memoria tras el arranque inicial
+	go func() {
+		// Esperar un tiempo prudencial para que termine el escaneo inicial
+		time.Sleep(1 * time.Minute)
+		log.Println("[Memory] Realizando limpieza de memoria post-arranque...")
+		runtime.GC()
+		debug.FreeOSMemory()
 	}()
 
 	// Esperar señal de interrupción
