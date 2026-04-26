@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - UID=${UID:-1000}
     container_name: gellyte
     ports:
       - "8081:8081"
