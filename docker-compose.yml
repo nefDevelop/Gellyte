@@ -22,7 +22,7 @@ services:
       - /dev/dri:/dev/dri
     environment:
       - TZ=Europe/Madrid
-      - DB_PATH=/app/config/gellyte.db
+      - GELLYTE_DATABASE_PATH=/app/config/gellyte.db
       # Opcional: configurar estas variables si se prefiere no tocar el config.yaml
       # - GELLYTE_TRANSCODER_HARDWARE_ACCELERATION=vaapi
       # - GELLYTE_TRANSCODER_DEFAULT_CODEC=h264_vaapi
