@@ -24,12 +24,14 @@ func (h *Handler) GetPublicUsers(c *gin.Context) {
 		return
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := time.Now().UTC().Format("2006-01-02T15:04:05.0000000Z")
+	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
+	
 	resp := []UserDto{}
 	for _, u := range users {
 		userObj := UserDto{
 			Name:                      u.Username,
-			ServerId:                  strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", ""),
+			ServerId:                  sId,
 			ServerName:                config.AppConfig.Server.Name,
 			Id:                        strings.ReplaceAll(u.ID, "-", ""),
 			HasPassword:               true,
@@ -45,7 +47,6 @@ func (h *Handler) GetPublicUsers(c *gin.Context) {
 		}
 		resp = append(resp, userObj)
 	}
-
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -77,7 +78,7 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 		username = c.Query("username") // Fallback lowercase
 	}
 
-	user, _, err := h.AuthService.Authenticate(username, pw, authInfo.DeviceId)
+	user, token, err := h.AuthService.Authenticate(username, pw, authInfo.DeviceId)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -88,6 +89,14 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 
 	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
 	uId := strings.ReplaceAll(user.ID, "-", "")
+
+	// Detectar si es una TV
+	deviceType := "Mobile"
+	clientLower := strings.ToLower(authInfo.Client)
+	deviceLower := strings.ToLower(authInfo.Device)
+	if strings.Contains(clientLower, "tv") || strings.Contains(deviceLower, "tv") || strings.Contains(clientLower, "box") {
+		deviceType = "Tv"
+	}
 
 	// Generar un JWT dummy más realista (Base64)
 	jwtHeader := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
@@ -128,7 +137,45 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 			PrimaryImageAspectRatio: 1.0,
 			PrimaryImageTag:         "tag",
 		},
-		SessionInfo: nil,
+		SessionInfo: &SessionInfoDto{
+			PlayState: PlayerStateInfo{
+				CanSeek:             true,
+				IsPaused:            false,
+				IsMuted:             false,
+				VolumeLevel:         100,
+				AudioStreamIndex:    0,
+				SubtitleStreamIndex: -1,
+				PlayMethod:          "DirectPlay",
+				RepeatMode:          "RepeatNone",
+			},
+			AdditionalUsers:    []interface{}{},
+			Capabilities: ClientCapabilities{
+				PlayableMediaTypes:           []string{"Audio", "Video"},
+				SupportedCommands:            []string{"MoveUp", "MoveDown", "MoveLeft", "MoveRight", "Select", "Back", "Play", "Pause", "Stop", "TogglePause"},
+				SupportsMediaControl:         true,
+				SupportsPersistentIdentifier: true,
+			},
+			RemoteEndPoint:      c.ClientIP(),
+			PlayableMediaTypes:  []string{"Audio", "Video"},
+			Id:                  token, // Usamos el token interno como ID de sesión
+			UserId:              uId,
+			UserName:            user.Username,
+			Client:              authInfo.Client,
+			LastActivityDate:    now,
+			LastPlaybackCheckIn: now,
+			DeviceName:          authInfo.Device,
+			DeviceType:          deviceType,
+			DeviceId:            authInfo.DeviceId,
+			ApplicationVersion:  authInfo.Version,
+			IsActive:            true,
+			SupportsMediaControl: true,
+			SupportsRemoteControl: true,
+			HasCustomDeviceName:  false,
+			ServerId:            sId,
+			SupportedCommands:   []string{"MoveUp", "MoveDown", "MoveLeft", "MoveRight", "Select", "Back", "Play", "Pause", "Stop", "TogglePause"},
+			NowPlayingQueue:     []interface{}{},
+			NowPlayingQueueFullItems: []interface{}{},
+		},
 		AccessToken: fullToken,
 		ServerId:    sId,
 	}
@@ -187,64 +234,60 @@ func (h *Handler) GetUserById(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"Name":                      user.Username,
-		"Id":                        strings.ReplaceAll(user.ID, "-", ""),
-		"ServerId":                  strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", ""),
-		"PrimaryImageTag":           "tag",
-		"HasPassword":               true,
-		"HasConfiguredPassword":     true,
-		"HasConfiguredEasyPassword": true,
-		"EnableAutoLogin":           true,
-		"PrimaryImageAspectRatio":   1.0,
-		"Policy":                    getDefaultPolicyDto(user.IsAdmin),
-		"Configuration":             getDefaultConfigurationDto(),
+	now := time.Now().UTC().Format("2006-01-02T15:04:05.0000000Z")
+	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
+	uId := strings.ReplaceAll(user.ID, "-", "")
+
+	c.JSON(http.StatusOK, UserDto{
+		Name:                      user.Username,
+		Id:                        uId,
+		ServerId:                  sId,
+		ServerName:                config.AppConfig.Server.Name,
+		PrimaryImageTag:           "tag",
+		HasPassword:               true,
+		HasConfiguredPassword:     true,
+		HasConfiguredEasyPassword: true,
+		EnableAutoLogin:           true,
+		LastLoginDate:             now,
+		LastActivityDate:          now,
+		PrimaryImageAspectRatio:   1.0,
+		Policy:                    getDefaultPolicyDto(user.IsAdmin),
+		Configuration:             getDefaultConfigurationDto(),
 	})
 }
 
 func (h *Handler) GetUserViews(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"Items": []gin.H{
-			{
-				"Name":           "Películas",
-				"ServerId":       config.AppConfig.Jellyfin.ServerUUID,
-				"Id":             config.AppConfig.Jellyfin.MoviesLibraryID,
-				"Type":           "CollectionFolder",
-				"CollectionType": "movies",
-				"ImageTags":      gin.H{},
-				"UserData": gin.H{
-					"PlaybackPositionTicks": 0,
-					"PlayCount":             0,
-					"IsFavorite":            false,
-					"Played":                false,
-				},
-				"IsFolder":                true,
-				"CanDelete":               false,
-				"IsFavorite":              false,
-				"PlayAccess":              "Full",
-				"PrimaryImageAspectRatio": 1.0,
-			},
-			{
-				"Name":           "Series",
-				"ServerId":       config.AppConfig.Jellyfin.ServerUUID,
-				"Id":             config.AppConfig.Jellyfin.SeriesLibraryID,
-				"Type":           "CollectionFolder",
-				"CollectionType": "tvshows",
-				"ImageTags":      gin.H{},
-				"UserData": gin.H{
-					"PlaybackPositionTicks": 0,
-					"PlayCount":             0,
-					"IsFavorite":            false,
-					"Played":                false,
-				},
-				"IsFolder":                true,
-				"CanDelete":               false,
-				"IsFavorite":              false,
-				"PlayAccess":              "Full",
-				"PrimaryImageAspectRatio": 1.0,
-			},
+	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
+	
+	views := []BaseItemDto{
+		{
+			Name:                    "Películas",
+			Id:                      config.AppConfig.Jellyfin.MoviesLibraryID,
+			ServerId:                sId,
+			Type:                    "CollectionFolder",
+			CollectionType:          "movies",
+			IsFolder:                true,
+			PlayAccess:              "Full",
+			PrimaryImageAspectRatio: 0.66,
+			ImageTags:               map[string]string{},
 		},
-		"TotalRecordCount": 2,
+		{
+			Name:                    "Series",
+			Id:                      config.AppConfig.Jellyfin.SeriesLibraryID,
+			ServerId:                sId,
+			Type:                    "CollectionFolder",
+			CollectionType:          "tvshows",
+			IsFolder:                true,
+			PlayAccess:              "Full",
+			PrimaryImageAspectRatio: 0.66,
+			ImageTags:               map[string]string{},
+		},
+	}
+
+	c.JSON(http.StatusOK, BaseItemDtoQueryResult{
+		Items:            views,
+		TotalRecordCount: len(views),
+		StartIndex:       0,
 	})
 }
 

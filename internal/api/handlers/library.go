@@ -16,18 +16,34 @@ import (
 
 // GetVirtualFolders godoc
 func (h *Handler) GetVirtualFolders(c *gin.Context) {
-	folders := []gin.H{
+	libOptions := LibraryOptions{
+		Enabled:               true,
+		EnableRealtimeMonitor: true,
+		SaveLocalMetadata:     true,
+		PathInfos:             []PathInfo{},
+		TypeOptions:           []TypeOptions{},
+	}
+
+	folders := []VirtualFolderDto{
 		{
-			"Name":           "Películas",
-			"Locations":      []string{config.AppConfig.Library.MoviesPath},
-			"CollectionType": "movies",
-			"ItemId":         config.AppConfig.Jellyfin.MoviesLibraryID,
+			"Películas",
+			[]string{config.AppConfig.Library.MoviesPath},
+			"movies",
+			libOptions,
+			config.AppConfig.Jellyfin.MoviesLibraryID,
+			config.AppConfig.Jellyfin.MoviesLibraryID,
+			nil,
+			nil,
 		},
 		{
-			"Name":           "Series",
-			"Locations":      []string{config.AppConfig.Library.SeriesPath},
-			"CollectionType": "tvshows",
-			"ItemId":         config.AppConfig.Jellyfin.SeriesLibraryID,
+			"Series",
+			[]string{config.AppConfig.Library.SeriesPath},
+			"tvshows",
+			libOptions,
+			config.AppConfig.Jellyfin.SeriesLibraryID,
+			config.AppConfig.Jellyfin.SeriesLibraryID,
+			nil,
+			nil,
 		},
 	}
 	c.JSON(http.StatusOK, folders)

@@ -14,26 +14,33 @@ type PublicSystemInfo struct {
 }
 
 type SystemInfo struct {
-	SystemUpdateLevel           string   `json:"SystemUpdateLevel"`
-	OperatingSystem             string   `json:"OperatingSystem"`
-	ServerName                  string   `json:"ServerName"`
-	Version                     string   `json:"Version"`
-	ServerVersion               string   `json:"ServerVersion"`
-	Id                          string   `json:"Id"`
-	HasUpdateAvailable          bool     `json:"HasUpdateAvailable"`
-	CanSelfRestart              bool     `json:"CanSelfRestart"`
-	CanSelfUpdate               bool     `json:"CanSelfUpdate"`
-	WebSocketPortNumber         int      `json:"WebSocketPortNumber"`
-	SupportsHttps               bool     `json:"SupportsHttps"`
-	SupportsLibraryUninstall    bool     `json:"SupportsLibraryUninstall"`
-	HasPendingRestart           bool     `json:"HasPendingRestart"`
-	IsShuttingDown              bool     `json:"IsShuttingDown"`
-	SupportsPatcher             bool     `json:"SupportsPatcher"`
-	CompletedInstallations      []string `json:"CompletedInstallations"`
-	CanLaunchWebBrowser         bool     `json:"CanLaunchWebBrowser"`
-	HardwareAccelerationDrivers []string `json:"HardwareAccelerationDrivers"`
-	HasToken                    bool     `json:"HasToken"`
-	EncoderLocation             string   `json:"EncoderLocation"`
+	LocalAddress               string        `json:"LocalAddress"`
+	ServerName                 string        `json:"ServerName"`
+	Version                    string        `json:"Version"`
+	ProductName                string        `json:"ProductName"`
+	OperatingSystem            string        `json:"OperatingSystem"`
+	Id                         string        `json:"Id"`
+	StartupWizardCompleted     bool          `json:"StartupWizardCompleted"`
+	OperatingSystemDisplayName  string        `json:"OperatingSystemDisplayName"`
+	PackageName                string        `json:"PackageName"`
+	HasPendingRestart          bool          `json:"HasPendingRestart"`
+	IsShuttingDown             bool          `json:"IsShuttingDown"`
+	SupportsLibraryMonitor     bool          `json:"SupportsLibraryMonitor"`
+	WebSocketPortNumber        int           `json:"WebSocketPortNumber"`
+	CompletedInstallations     []interface{} `json:"CompletedInstallations"`
+	CanSelfRestart             bool          `json:"CanSelfRestart"`
+	CanLaunchWebBrowser        bool          `json:"CanLaunchWebBrowser"`
+	ProgramDataPath            string        `json:"ProgramDataPath"`
+	WebPath                    string        `json:"WebPath"`
+	ItemsByNamePath            string        `json:"ItemsByNamePath"`
+	CachePath                  string        `json:"CachePath"`
+	LogPath                    string        `json:"LogPath"`
+	InternalMetadataPath       string        `json:"InternalMetadataPath"`
+	TranscodingTempPath        string        `json:"TranscodingTempPath"`
+	CastReceiverApplications   []interface{} `json:"CastReceiverApplications"`
+	HasUpdateAvailable         bool          `json:"HasUpdateAvailable"`
+	EncoderLocation            string        `json:"EncoderLocation"`
+	SystemArchitecture         string        `json:"SystemArchitecture"`
 }
 
 type UserDto struct {
@@ -136,30 +143,51 @@ type AuthenticationResult struct {
 }
 
 type SessionInfoDto struct {
-	PlayState             PlayerStateInfo    `json:"PlayState"`
-	AdditionalUsers       []interface{}      `json:"AdditionalUsers"`
-	Capabilities          ClientCapabilities `json:"Capabilities"`
-	RemoteEndPoint        string             `json:"RemoteEndPoint"`
-	PlayableMediaTypes    []string           `json:"PlayableMediaTypes"`
-	Id                    string             `json:"Id"`
-	UserId                string             `json:"UserId"`
-	UserName              string             `json:"UserName"`
-	Client                string             `json:"Client"`
-	LastActivityDate      string             `json:"LastActivityDate"`
-	LastPlaybackCheckIn   string             `json:"LastPlaybackCheckIn"`
-	LastPausedDate        interface{}        `json:"LastPausedDate"` // null
-	DeviceName            string             `json:"DeviceName"`
-	DeviceType            string             `json:"DeviceType"`
-	DeviceId              string             `json:"DeviceId"`
-	ApplicationVersion    string             `json:"ApplicationVersion"`
-	IsActive              bool               `json:"IsActive"`
-	SupportsMediaControl  bool               `json:"SupportsMediaControl"`
-	SupportsRemoteControl bool               `json:"SupportsRemoteControl"`
-	NowPlayingItem        interface{}        `json:"NowPlayingItem"` // null
-	NowViewingItem        interface{}        `json:"NowViewingItem"` // null
-	ServerId              string             `json:"ServerId"`
-	SupportedCommands     []string           `json:"SupportedCommands"`
-	NowPlayingQueue       []interface{}      `json:"NowPlayingQueue"`
+	PlayState                PlayerStateInfo    `json:"PlayState"`
+	AdditionalUsers          []interface{}      `json:"AdditionalUsers"`
+	Capabilities             ClientCapabilities `json:"Capabilities"`
+	RemoteEndPoint           string             `json:"RemoteEndPoint"`
+	PlayableMediaTypes       []string           `json:"PlayableMediaTypes"`
+	Id                       string             `json:"Id"`
+	UserId                   string             `json:"UserId"`
+	UserName                 string             `json:"UserName"`
+	Client                   string             `json:"Client"`
+	LastActivityDate         string             `json:"LastActivityDate"`
+	LastPlaybackCheckIn      string             `json:"LastPlaybackCheckIn"`
+	LastPausedDate           *string            `json:"LastPausedDate"`
+	DeviceName               string             `json:"DeviceName"`
+	DeviceType               string             `json:"DeviceType"`
+	DeviceId                 string             `json:"DeviceId"`
+	ApplicationVersion       string             `json:"ApplicationVersion"`
+	TranscodingInfo          *TranscodingInfo   `json:"TranscodingInfo"`
+	IsActive                 bool               `json:"IsActive"`
+	SupportsMediaControl     bool               `json:"SupportsMediaControl"`
+	SupportsRemoteControl    bool               `json:"SupportsRemoteControl"`
+	NowPlayingItem           interface{}        `json:"NowPlayingItem"`
+	NowViewingItem           interface{}        `json:"NowViewingItem"`
+	HasCustomDeviceName      bool               `json:"HasCustomDeviceName"`
+	PlaylistItemId           string             `json:"PlaylistItemId"`
+	ServerId                 string             `json:"ServerId"`
+	UserPrimaryImageTag      string             `json:"UserPrimaryImageTag"`
+	SupportedCommands        []string           `json:"SupportedCommands"`
+	NowPlayingQueue          []interface{}      `json:"NowPlayingQueue"`
+	NowPlayingQueueFullItems []interface{}      `json:"NowPlayingQueueFullItems"`
+}
+
+type TranscodingInfo struct {
+	AudioCodec               string  `json:"AudioCodec"`
+	VideoCodec               string  `json:"VideoCodec"`
+	Container                string  `json:"Container"`
+	IsVideoDirect            bool    `json:"IsVideoDirect"`
+	IsAudioDirect            bool    `json:"IsAudioDirect"`
+	Bitrate                  int     `json:"Bitrate"`
+	Framerate                float64 `json:"Framerate"`
+	CompletionPercentage     float64 `json:"CompletionPercentage"`
+	Width                    int     `json:"Width"`
+	Height                   int     `json:"Height"`
+	AudioChannels            int     `json:"AudioChannels"`
+	HardwareAccelerationType string  `json:"HardwareAccelerationType"`
+	TranscodeReasons         string  `json:"TranscodeReasons"`
 }
 
 type PlayerStateInfo struct {
@@ -229,4 +257,69 @@ type BaseItemDtoQueryResult struct {
 	Items            []BaseItemDto `json:"Items"`
 	TotalRecordCount int           `json:"TotalRecordCount"`
 	StartIndex       int           `json:"StartIndex"`
+}
+
+type VirtualFolderDto struct {
+	Name               string         `json:"Name"`
+	Locations          []string       `json:"Locations"`
+	CollectionType     string         `json:"CollectionType"`
+	LibraryOptions     LibraryOptions `json:"LibraryOptions"`
+	ItemId             string         `json:"ItemId"`
+	PrimaryImageItemId string         `json:"PrimaryImageItemId"`
+	RefreshProgress    *float64       `json:"RefreshProgress"`
+	RefreshStatus      *string        `json:"RefreshStatus"`
+}
+
+type LibraryOptions struct {
+	Enabled                                 bool          `json:"Enabled"`
+	EnablePhotos                            bool          `json:"EnablePhotos"`
+	EnableRealtimeMonitor                   bool          `json:"EnableRealtimeMonitor"`
+	EnableLUFSScan                          bool          `json:"EnableLUFSScan"`
+	EnableChapterImageExtraction            bool          `json:"EnableChapterImageExtraction"`
+	ExtractChapterImagesDuringLibraryScan   bool          `json:"ExtractChapterImagesDuringLibraryScan"`
+	EnableTrickplayImageExtraction          bool          `json:"EnableTrickplayImageExtraction"`
+	ExtractTrickplayImagesDuringLibraryScan bool          `json:"ExtractTrickplayImagesDuringLibraryScan"`
+	PathInfos                               []PathInfo    `json:"PathInfos"`
+	SaveLocalMetadata                       bool          `json:"SaveLocalMetadata"`
+	EnableInternetProviders                 bool          `json:"EnableInternetProviders"`
+	EnableAutomaticSeriesGrouping           bool          `json:"EnableAutomaticSeriesGrouping"`
+	EnableEmbeddedTitles                    bool          `json:"EnableEmbeddedTitles"`
+	EnableEmbeddedExtrasTitles              bool          `json:"EnableEmbeddedExtrasTitles"`
+	EnableEmbeddedEpisodeInfos              bool          `json:"EnableEmbeddedEpisodeInfos"`
+	AutomaticRefreshIntervalDays            int           `json:"AutomaticRefreshIntervalDays"`
+	PreferredMetadataLanguage               string        `json:"PreferredMetadataLanguage"`
+	MetadataCountryCode                     string        `json:"MetadataCountryCode"`
+	SeasonZeroDisplayName                   string        `json:"SeasonZeroDisplayName"`
+	MetadataSavers                          []string      `json:"MetadataSavers"`
+	DisabledLocalMetadataReaders            []string      `json:"DisabledLocalMetadataReaders"`
+	LocalMetadataReaderOrder                []string      `json:"LocalMetadataReaderOrder"`
+	DisabledSubtitleFetchers                []string      `json:"DisabledSubtitleFetchers"`
+	SubtitleFetcherOrder                    []string      `json:"SubtitleFetcherOrder"`
+	SkipSubtitlesIfEmbeddedSubtitlesPresent bool          `json:"SkipSubtitlesIfEmbeddedSubtitlesPresent"`
+	SkipSubtitlesIfAudioTrackMatches        bool          `json:"SkipSubtitlesIfAudioTrackMatches"`
+	SubtitleDownloadLanguages               []string      `json:"SubtitleDownloadLanguages"`
+	RequirePerfectSubtitleMatch             bool          `json:"RequirePerfectSubtitleMatch"`
+	SaveSubtitlesWithMedia                  bool          `json:"SaveSubtitlesWithMedia"`
+	AutomaticallyAddToCollection            bool          `json:"AutomaticallyAddToCollection"`
+	AllowEmbeddedSubtitles                  string        `json:"AllowEmbeddedSubtitles"`
+	TypeOptions                             []TypeOptions `json:"TypeOptions"`
+}
+
+type PathInfo struct {
+	Path string `json:"Path"`
+}
+
+type TypeOptions struct {
+	Type                 string         `json:"Type"`
+	MetadataFetchers     []string       `json:"MetadataFetchers"`
+	MetadataFetcherOrder []string       `json:"MetadataFetcherOrder"`
+	ImageFetchers        []string       `json:"ImageFetchers"`
+	ImageFetcherOrder    []string       `json:"ImageFetcherOrder"`
+	ImageOptions         []ImageOptions `json:"ImageOptions"`
+}
+
+type ImageOptions struct {
+	Type     string `json:"Type"`
+	Limit    int    `json:"Limit"`
+	MinWidth int    `json:"MinWidth"`
 }
