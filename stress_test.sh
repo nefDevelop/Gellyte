@@ -19,9 +19,13 @@ get_mem
 get_goroutines
 echo "-----------------------------------"
 
-echo "Fase 1: Extrayendo todos los IDs de medios..."
-# Versión sin jq para máxima compatibilidad
-ALL_IDS=$(curl -s "$SERVER_URL/Items" | grep -o '"Id":"[^"]*"' | sed 's/"Id":"//;s/"//g')
+echo "Fase 1: Extrayendo IDs de medios (Filtro: ${1:-Ninguno})..."
+# Si se pasa un argumento, filtramos por ese texto
+if [ -n "$1" ]; then
+    ALL_IDS=$(curl -s "$SERVER_URL/Items" | grep -i "$1" -B 1 | grep -o '"Id":"[^"]*"' | sed 's/"Id":"//;s/"//g')
+else
+    ALL_IDS=$(curl -s "$SERVER_URL/Items" | grep -o '"Id":"[^"]*"' | sed 's/"Id":"//;s/"//g')
+fi
 COUNT=$(echo "$ALL_IDS" | grep -v '^$' | wc -l)
 
 if [ "$COUNT" -eq 0 ]; then
