@@ -85,11 +85,9 @@ func runServe() {
 	r.Use(middleware.EmbyAuthMiddleware())
 
 	// r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	r.GET("/swagger/doc.json", func(c *gin.Context) {
-		c.File("./docs/swagger.json")
-	})
 	r.GET("/swagger/*any", func(c *gin.Context) {
-		if c.Param("any") == "/doc.json" {
+		path := c.Param("any")
+		if path == "/doc.json" || path == "doc.json" {
 			c.File("./docs/swagger.json")
 			return
 		}
