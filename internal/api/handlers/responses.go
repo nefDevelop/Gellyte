@@ -72,6 +72,10 @@ type UserConfiguration struct {
 	CastReceiverId             string   `json:"CastReceiverId"`
 	ResumePlayerState          bool     `json:"ResumePlayerState"`
 	SyncPlayLikes              bool     `json:"SyncPlayLikes"`
+	EnableCinemaMode           bool     `json:"EnableCinemaMode"`
+	HidePlayedInSongs          bool     `json:"HidePlayedInSongs"`
+	HidePlayedInVideos         bool     `json:"HidePlayedInVideos"`
+	SkipSongsNotPlayed         bool     `json:"SkipSongsNotPlayed"`
 }
 
 type UserPolicy struct {
@@ -113,6 +117,9 @@ type UserPolicy struct {
 	LoginAttemptsBeforeLockout       int      `json:"LoginAttemptsBeforeLockout"`
 	MaxActiveSessions                int      `json:"MaxActiveSessions"`
 	EnablePublicSharing              bool     `json:"EnablePublicSharing"`
+	EnableSubtitleDownloading        bool     `json:"EnableSubtitleDownloading"`
+	EnablePlaybackStreaming          bool     `json:"EnablePlaybackStreaming"`
+	EnableSharedDevice               bool     `json:"EnableSharedDevice"`
 	BlockedMediaFolders              []string `json:"BlockedMediaFolders"`
 	BlockedChannels                  []string `json:"BlockedChannels"`
 	RemoteClientBitrateLimit         int      `json:"RemoteClientBitrateLimit"`

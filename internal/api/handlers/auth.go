@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -83,15 +84,21 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 		return
 	}
 
-	c.Header("X-Emby-Token", token)
-	c.Header("X-MediaBrowser-Token", token)
-	c.Header("Access-Control-Expose-Headers", "X-Emby-Token, X-Emby-Authorization, X-MediaBrowser-Token")
-	c.Header("Content-Type", "application/json")
+	// Generar un token con formato JWT para mayor compatibilidad con clientes de TV
+	jwtHeader := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" // Header standard
+	jwtPayload := hex.EncodeToString([]byte(token))     // Payload dummy basado en el token MD5
+	fullToken := jwtHeader + "." + jwtPayload + ".dummy_signature"
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	// Formato de fecha con 7 decimales (precisión de Jellyfin)
+	now := time.Now().UTC().Format("2006-01-02T15:04:05.0000000Z")
 
 	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
 	uId := strings.ReplaceAll(user.ID, "-", "")
+
+	c.Header("X-Emby-Token", fullToken)
+	c.Header("X-MediaBrowser-Token", fullToken)
+	c.Header("Access-Control-Expose-Headers", "X-Emby-Token, X-Emby-Authorization, X-MediaBrowser-Token")
+	c.Header("Content-Type", "application/json")
 
 	authResult := AuthenticationResult{
 		User: UserDto{
@@ -102,7 +109,7 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 			HasPassword:               true,
 			HasConfiguredPassword:     true,
 			HasConfiguredEasyPassword: true,
-			EnableAutoLogin:           true,
+			EnableAutoLogin:           false,
 			LastLoginDate:             now,
 			LastActivityDate:          now,
 			Configuration: UserConfiguration{
@@ -113,13 +120,17 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 				EnableNextEpisodeAutoPlay:  true,
 				ResumePlayerState:          true,
 				SyncPlayLikes:              true,
+				EnableCinemaMode:           false,
+				HidePlayedInSongs:          false,
+				HidePlayedInVideos:         false,
+				SkipSongsNotPlayed:         false,
 			},
 			Policy:                  getDefaultPolicyDto(user.IsAdmin),
 			PrimaryImageAspectRatio: 1.0,
 			PrimaryImageTag:         "tag",
 		},
 		SessionInfo: nil,
-		AccessToken: token,
+		AccessToken: fullToken,
 		ServerId:    sId,
 	}
 

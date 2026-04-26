@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gin-gonic/gin"
@@ -23,7 +24,7 @@ func (h *Handler) GetPublicInfo(c *gin.Context) {
 		Version:                serverVersion,
 		ProductName:            productName,
 		OperatingSystem:        operatingSystem,
-		Id:                     config.AppConfig.Jellyfin.ServerUUID,
+		Id:                     strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", ""),
 		StartupWizardCompleted: true,
 	})
 }
@@ -36,7 +37,7 @@ func (h *Handler) GetSystemInfo(c *gin.Context) {
 		ServerName:                  config.AppConfig.Server.Name,
 		Version:                     serverVersion,
 		ServerVersion:               serverVersion,
-		Id:                          config.AppConfig.Jellyfin.ServerUUID,
+		Id:                          strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", ""),
 		HasUpdateAvailable:          false,
 		CanSelfRestart:              false,
 		CanSelfUpdate:               false,
