@@ -89,12 +89,7 @@ func ScanManual(path string, libType string) {
 	scanInitial(path, libType, path)
 }
 
-type scanTask struct {
-	path    string
-	libType string
-	libRoot string
-	isDir   bool
-}
+
 
 var (
 	// sem controla la concurrencia máxima de escaneo (4 tareas a la vez)
@@ -120,7 +115,7 @@ func enqueueTask(path string, libType string, libRoot string, isDir bool) {
 		if isDir {
 			processDirectory(path, libType, libRoot)
 		} else {
-			processFile(path, libType, libRoot)
+			processFile(path, libType)
 		}
 	}()
 }
@@ -138,11 +133,13 @@ func scanInitial(root string, libType string, libRoot string) {
 }
 
 // processFile añade o actualiza un archivo en la base de datos si es video.
-func processFile(path string, libType string, libRoot string) {
+func processFile(path string, libType string) {
 	path = filepath.Clean(path)
 	if !isVideoFile(path) {
 		return
 	}
+
+	log.Printf("[Scanner] Procesando archivo: %s", filepath.Base(path))
 
 	name := filepath.Base(path)
 	ext := filepath.Ext(path)
@@ -205,6 +202,7 @@ func processFile(path string, libType string, libRoot string) {
 		}
 
 		database.DB.Create(&newItem)
+		log.Printf("[Scanner] + Añadido a biblioteca: %s (%s)", newItem.Name, newItem.Type)
 		if OnLibraryChanged != nil {
 			OnLibraryChanged()
 		}
@@ -251,7 +249,7 @@ func processDirectory(path string, libType string, libRoot string) {
 	}
 
 	database.DB.Create(&newItem)
-	//log.Printf("[Library] Carpeta detectada: %s (%s)", name, itemType)
+	log.Printf("[Scanner] + Carpeta detectada: %s (%s)", name, itemType)
 	if OnLibraryChanged != nil {
 		OnLibraryChanged()
 	}

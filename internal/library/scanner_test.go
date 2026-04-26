@@ -84,7 +84,7 @@ func TestProcessFile(t *testing.T) {
 
 	t.Run("Create Movie File", func(t *testing.T) {
 		path := "/media/movies/Inception.mp4"
-		processFile(path, libType, libRoot)
+		processFile(path, libType)
 
 		var item models.MediaItem
 		err := db.Where("path = ?", path).First(&item).Error
