@@ -1,8 +1,7 @@
 package handlers
 
 import (
-	"crypto/md5"
-	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -87,6 +86,7 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 	c.Header("X-Emby-Token", token)
 	c.Header("X-MediaBrowser-Token", token)
 	c.Header("Access-Control-Expose-Headers", "X-Emby-Token, X-Emby-Authorization, X-MediaBrowser-Token")
+	c.Header("Content-Type", "application/json")
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
@@ -96,10 +96,6 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 	if strings.Contains(clientLower, "tv") || strings.Contains(deviceLower, "tv") || strings.Contains(clientLower, "box") {
 		deviceType = "Tv"
 	}
-
-	// Crear un SessionId consistente (MD5 del deviceId)
-	sHash := md5.Sum([]byte(authInfo.DeviceId))
-	sessionId := hex.EncodeToString(sHash[:])
 
 	authResult := AuthenticationResult{
 		User: UserDto{
@@ -127,7 +123,7 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 			},
 			RemoteEndPoint:        c.ClientIP(),
 			PlayableMediaTypes:    []string{"Video"},
-			Id:                    sessionId,
+			Id:                    token,
 			UserId:                user.ID,
 			UserName:              user.Username,
 			Client:                authInfo.Client,
@@ -170,7 +166,14 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 		ServerId:    config.AppConfig.Jellyfin.ServerUUID,
 	}
 
-	c.JSON(http.StatusOK, authResult)
+	c.Header("Content-Type", "application/json")
+
+	jsonBytes, err := json.Marshal(authResult)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error encoding JSON"})
+		return
+	}
+	c.Data(http.StatusOK, "application/json", jsonBytes)
 }
 
 func (h *Handler) GetCurrentUser(c *gin.Context) {
@@ -182,7 +185,7 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if adminUser == nil && len(users) > 0 {
 		adminUser = &users[0]
 	}
@@ -301,7 +304,7 @@ func getDefaultPolicyDto(isAdmin bool) UserPolicy {
 		IsHidden:                         false,
 		EnableCollectionManagement:       true,
 		EnableSubtitleManagement:         true,
-		EnableLyricManagement:            false, // Ocultar UI de música y letras
+		EnableLyricManagement:            false,
 		IsDisabled:                       false,
 		MaxParentalRating:                0,
 		MaxParentalSubRating:             0,
@@ -313,34 +316,37 @@ func getDefaultPolicyDto(isAdmin bool) UserPolicy {
 		EnableRemoteControlOfOtherUsers:  true,
 		EnableSharedDeviceControl:        true,
 		EnableRemoteAccess:               true,
-		EnableLiveTvManagement:           false, // Ocultar el menú de Live TV
-		EnableLiveTvAccess:               false, // Ocultar el menú de Live TV
+		EnableLiveTvManagement:           false,
+		EnableLiveTvAccess:               false,
 		EnableMediaPlayback:              true,
-		EnableAudioPlaybackTranscoding:   false, // Indicar que no manejamos audio puro
+		EnableAudioPlaybackTranscoding:   false,
 		EnableVideoPlaybackTranscoding:   true,
 		EnablePlaybackRemuxing:           true,
 		ForceRemoteSourceTranscoding:     false,
 		EnableContentDeletion:            true,
 		EnableContentDeletionFromFolders: []string{},
-		EnableContentDownloading:         false, // Ocultar botones de descarga
-		EnableSyncTranscoding:            false, // Ocultar UI de sincronización/SyncPlay
+		EnableContentDownloading:         false,
+		EnableSyncTranscoding:            false,
 		EnableMediaConversion:            true,
 		EnabledDevices:                   []string{},
 		EnableAllDevices:                 true,
 		EnabledChannels:                  []string{},
-		EnableAllChannels:                false, // Ocultar el menú de Canales
-		EnabledFolders:                   []string{},
-		EnableAllFolders:                 true,
-		InvalidLoginAttemptCount:         0,
-		LoginAttemptsBeforeLockout:       0,
-		MaxActiveSessions:                0,
-		EnablePublicSharing:              true,
-		BlockedMediaFolders:              []string{},
-		BlockedChannels:                  []string{},
-		RemoteClientBitrateLimit:         0,
-		AuthenticationProviderId:         "Default",
-		PasswordResetProviderId:          "Default",
-		SyncPlayAccess:                   "CreateAndJoinGroups",
+		EnableAllChannels:                false,
+		EnabledFolders: []string{
+			config.AppConfig.Jellyfin.MoviesLibraryID,
+			config.AppConfig.Jellyfin.SeriesLibraryID,
+		},
+		EnableAllFolders:           true,
+		InvalidLoginAttemptCount:   0,
+		LoginAttemptsBeforeLockout: 0,
+		MaxActiveSessions:          0,
+		EnablePublicSharing:        true,
+		BlockedMediaFolders:        []string{},
+		BlockedChannels:            []string{},
+		RemoteClientBitrateLimit:   0,
+		AuthenticationProviderId:   "Default",
+		PasswordResetProviderId:    "Default",
+		SyncPlayAccess:             "CreateAndJoinGroups",
 	}
 }
 
