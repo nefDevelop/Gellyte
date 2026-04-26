@@ -97,39 +97,32 @@ type scanTask struct {
 }
 
 var (
-	scanQueue chan scanTask
-	workerWg  sync.WaitGroup
+	// sem controla la concurrencia máxima de escaneo (4 tareas a la vez)
+	sem      = make(chan struct{}, 4)
+	workerWg sync.WaitGroup
 )
 
-func init() {
-	// Inicializar cola y workers (ej. 4 workers)
-	scanQueue = make(chan scanTask, 100)
-	for i := 0; i < 4; i++ {
-		go scanWorker()
-	}
-}
-
-// StopScanner detiene los workers de forma limpia.
+// StopScanner espera a que terminen las tareas en curso.
 func StopScanner() {
-	close(scanQueue)
 	workerWg.Wait()
-	log.Println("[Scanner] Workers detenidos correctamente.")
-}
-
-func scanWorker() {
-	for task := range scanQueue {
-		if task.isDir {
-			processDirectory(task.path, task.libType, task.libRoot)
-		} else {
-			processFile(task.path, task.libType, task.libRoot)
-		}
-		workerWg.Done()
-	}
+	log.Println("[Scanner] Tareas finalizadas correctamente.")
 }
 
 func enqueueTask(path string, libType string, libRoot string, isDir bool) {
 	workerWg.Add(1)
-	scanQueue <- scanTask{path, libType, libRoot, isDir}
+	go func() {
+		defer workerWg.Done()
+
+		// Adquirir slot en el semáforo
+		sem <- struct{}{}
+		defer func() { <-sem }()
+
+		if isDir {
+			processDirectory(path, libType, libRoot)
+		} else {
+			processFile(path, libType, libRoot)
+		}
+	}()
 }
 
 // scanInitial recorre la carpeta una vez al inicio utilizando WalkDir (más rápido).

@@ -25,8 +25,6 @@ import (
 	"github.com/gellyte/gellyte/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 var serveCmd = &cobra.Command{
@@ -86,7 +84,47 @@ func runServe() {
 	r.Use(middleware.ResponseLoggerMiddleware())
 	r.Use(middleware.EmbyAuthMiddleware())
 
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	r.GET("/swagger/doc.json", func(c *gin.Context) {
+		c.File("./docs/swagger.json")
+	})
+	r.GET("/swagger/*any", func(c *gin.Context) {
+		if c.Param("any") == "/doc.json" {
+			c.File("./docs/swagger.json")
+			return
+		}
+		c.Header("Content-Type", "text/html")
+		c.String(http.StatusOK, `
+			<!DOCTYPE html>
+			<html lang="en">
+			<head>
+				<meta charset="UTF-8">
+				<title>Gellyte API Documentation</title>
+				<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+				<link rel="icon" type="image/png" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/favicon-32x32.png" sizes="32x32" />
+			</head>
+			<body>
+				<div id="swagger-ui"></div>
+				<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+				<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+				<script>
+					window.onload = function() {
+						const ui = SwaggerUIBundle({
+							url: "/swagger/doc.json",
+							dom_id: '#swagger-ui',
+							deepLinking: true,
+							presets: [
+								SwaggerUIBundle.presets.apis,
+								SwaggerUIStandalonePreset
+							],
+							layout: "StandaloneLayout"
+						});
+					};
+				</script>
+			</body>
+			</html>
+		`)
+	})
 
 	// --- RUTAS COMPATIBLES ---
 	r.GET("/System/Info/Public", h.System.GetPublicInfo)
