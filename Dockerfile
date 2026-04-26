@@ -42,4 +42,4 @@ USER gellyte
 EXPOSE 8081
 
 # Command to run the application
-CMD ["./gellyte"]
+CMD ["./gellyte", "serve"]
