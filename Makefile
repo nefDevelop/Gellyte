@@ -25,7 +25,7 @@ swagger:
 # Construir el binario (similar a la stage 1 del Dockerfile)
 build: swagger
 	@echo "=> Compilando el binario..."
-	go build -o $(BINARY_NAME) ./cmd/api
+	go build -ldflags="-s -w" -o $(BINARY_NAME) ./cmd/api
 
 # Limpiar archivos generados
 clean:
