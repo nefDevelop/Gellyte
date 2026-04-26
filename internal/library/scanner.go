@@ -27,6 +27,7 @@ func WatchFolder(path string, libType string) {
 
 	// Asegurarse de que la carpeta existe
 	if _, err := os.Stat(path); os.IsNotExist(err) {
+		log.Printf("[Scanner] La carpeta no existe, creándola: %s", path)
 		err := os.MkdirAll(path, 0755)
 		if err != nil {
 			log.Println("No se pudo crear la carpeta de medios:", path)
@@ -122,14 +123,21 @@ func enqueueTask(path string, libType string, libRoot string, isDir bool) {
 
 // scanInitial recorre la carpeta una vez al inicio utilizando WalkDir (más rápido).
 func scanInitial(root string, libType string, libRoot string) {
-	filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err == nil {
-			enqueueTask(path, libType, libRoot, d.IsDir())
+	log.Printf("[Scanner] Iniciando WalkDir en: %s", root)
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			log.Printf("[Scanner] Error accediendo a ruta %s: %v", path, err)
+			return err
 		}
+		// Log temporal para depuración
+		// log.Printf("[Scanner] Visitando: %s (Es carpeta: %v)", path, d.IsDir())
+		
+		enqueueTask(path, libType, libRoot, d.IsDir())
 		return nil
 	})
-	// Esperar a que terminen los workers si es un escaneo manual/inicial síncrono
-	// workerWg.Wait() 
+	if err != nil {
+		log.Printf("[Scanner] Error en el escaneo inicial de %s: %v", root, err)
+	}
 }
 
 // processFile añade o actualiza un archivo en la base de datos si es video.
