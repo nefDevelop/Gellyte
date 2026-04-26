@@ -18,6 +18,7 @@ const (
 
 // GetPublicInfo godoc
 func (h *Handler) GetPublicInfo(c *gin.Context) {
+	c.Header("Content-Type", "application/json; profile=\"PascalCase\"; charset=utf-8")
 	c.JSON(http.StatusOK, PublicSystemInfo{
 		LocalAddress:           fmt.Sprintf("http://%s", c.Request.Host),
 		ServerName:             config.AppConfig.Server.Name,
@@ -31,6 +32,7 @@ func (h *Handler) GetPublicInfo(c *gin.Context) {
 
 // GetSystemInfo godoc
 func (h *Handler) GetSystemInfo(c *gin.Context) {
+	c.Header("Content-Type", "application/json; profile=\"PascalCase\"; charset=utf-8")
 	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
 	c.JSON(http.StatusOK, SystemInfo{
 		LocalAddress:               fmt.Sprintf("http://%s", c.Request.Host),

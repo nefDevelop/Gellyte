@@ -39,6 +39,8 @@ func CORSMiddleware() gin.HandlerFunc {
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 		c.Writer.Header().Set("Access-Control-Expose-Headers", "X-Emby-Token, X-Emby-Authorization, X-MediaBrowser-Token, Content-Range, Accept-Ranges, Content-Length, Content-Encoding")
 		c.Writer.Header().Set("Server", "Kestrel")
+		c.Writer.Header().Set("X-Emby-Version", "10.11.8")
+		c.Writer.Header().Set("X-Powered-By", "ASP.NET")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
