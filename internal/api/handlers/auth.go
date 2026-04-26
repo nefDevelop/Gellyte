@@ -39,7 +39,7 @@ func (h *Handler) GetPublicUsers(c *gin.Context) {
 			Configuration:             getDefaultConfigurationDto(),
 			Policy:                    getDefaultPolicyDto(u.IsAdmin),
 			PrimaryImageAspectRatio:   1.0,
-			PrimaryImageTag:           "",
+			PrimaryImageTag:           "tag",
 		}
 		resp = append(resp, userObj)
 	}
@@ -91,7 +91,7 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 			Configuration:             getDefaultConfigurationDto(),
 			Policy:                    getDefaultPolicyDto(user.IsAdmin),
 			PrimaryImageAspectRatio:   1.0,
-			PrimaryImageTag:           "",
+			PrimaryImageTag:           "tag",
 		},
 		SessionInfo: SessionInfoDto{
 			PlayState: PlayerStateInfo{
@@ -182,7 +182,7 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 		Configuration:             getDefaultConfigurationDto(),
 		Policy:                    getDefaultPolicyDto(adminUser.IsAdmin),
 		PrimaryImageAspectRatio:   1.0,
-		PrimaryImageTag:           "",
+		PrimaryImageTag:           "tag",
 	})
 }
 
@@ -198,7 +198,7 @@ func (h *Handler) GetUserById(c *gin.Context) {
 		"Name":                      user.Username,
 		"Id":                        user.ID,
 		"ServerId":                  config.AppConfig.Jellyfin.ServerUUID,
-		"PrimaryImageTag":           "",
+		"PrimaryImageTag":           "tag",
 		"HasPassword":               true,
 		"HasConfiguredPassword":     true,
 		"HasConfiguredEasyPassword": true,

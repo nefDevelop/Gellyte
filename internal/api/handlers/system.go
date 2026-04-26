@@ -80,6 +80,13 @@ func (h *Handler) GetQuickConnectEnabled(c *gin.Context) {
 	c.JSON(http.StatusOK, false)
 }
 
+// InitiateQuickConnect godoc
+func (h *Handler) InitiateQuickConnect(c *gin.Context) {
+	// Aunque esté desactivado, algunos clientes llaman a este endpoint.
+	// Devolvemos un error 401 indicando que no está autorizado o simplemente desactivado.
+	c.JSON(http.StatusUnauthorized, gin.H{"error": "QuickConnect is disabled on this server"})
+}
+
 // GetBrandingConfiguration godoc
 func (h *Handler) GetBrandingConfiguration(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{

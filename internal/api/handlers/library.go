@@ -181,6 +181,11 @@ func (h *Handler) GetUserPrimaryImage(c *gin.Context) {
 	c.String(http.StatusOK, svg)
 }
 
+func (h *Handler) GetUserImage(c *gin.Context) {
+	// Alias para GetUserPrimaryImage usado por algunos clientes
+	h.GetUserPrimaryImage(c)
+}
+
 func (h *Handler) GetNextUp(c *gin.Context) {
 	userId := c.GetString("UserID")
 	if userId == "" {
