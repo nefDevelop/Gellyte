@@ -197,10 +197,15 @@ func (h *PlaybackHandler) TranscodeVideo(c *gin.Context) {
 		return
 	}
 
-	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+	// Vigilante para matar el proceso si el cliente se desconecta
+	go func() {
+		<-c.Request.Context().Done()
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
 	}()
+
+	defer cmd.Wait()
 
 	c.Header("Content-Type", "video/x-matroska")
 	c.Header("Transfer-Encoding", "chunked")
@@ -284,10 +289,15 @@ func (h *PlaybackHandler) GetHlsSegment(c *gin.Context) {
 		return
 	}
 
-	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+	// Vigilante de desconexión
+	go func() {
+		<-c.Request.Context().Done()
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
 	}()
+
+	defer cmd.Wait()
 
 	c.Header("Content-Type", "video/mp2t")
 	io.Copy(c.Writer, stdout)
@@ -324,7 +334,16 @@ func (h *PlaybackHandler) GetSubtitleStream(c *gin.Context) {
 	}
 
 	cmd.Start()
-	defer func() { cmd.Process.Kill(); cmd.Wait() }()
+	
+	// Vigilante de desconexión
+	go func() {
+		<-c.Request.Context().Done()
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+	}()
+
+	defer cmd.Wait()
 
 	c.Header("Content-Type", "text/vtt; charset=utf-8")
 	io.Copy(c.Writer, stdout)
