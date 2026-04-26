@@ -154,9 +154,27 @@ func processFile(path string, libType string) {
 
 	var item models.MediaItem
 	err := database.DB.Where("path = ?", path).First(&item).Error
+	if err == nil {
+		// El archivo ya existe. Si no tiene metadatos, intentamos extraerlos ahora.
+		if item.Width == 0 {
+			meta, err := GetVideoMetadata(path)
+			if err == nil {
+				item.RunTimeTicks = meta.DurationTicks
+				item.Width = meta.Width
+				item.Height = meta.Height
+				item.Bitrate = meta.Bitrate
+				item.VideoCodec = meta.VideoCodec
+				item.AudioCodec = meta.AudioCodec
+				item.MediaStreams = meta.Streams
+				database.DB.Save(&item)
+				log.Printf("[Scanner] ! Metadatos actualizados para: %s", name)
+			}
+		}
+		return
+	}
 
-	if err != nil { // No existe, crear uno nuevo
-		itemType := "Movie"
+	// No existe, crear uno nuevo
+	itemType := "Movie"
 		parentId := config.AppConfig.Jellyfin.MoviesLibraryID
 
 		if libType == "series" {
@@ -214,7 +232,6 @@ func processFile(path string, libType string) {
 		if OnLibraryChanged != nil {
 			OnLibraryChanged()
 		}
-	}
 }
 
 // processDirectory maneja la creación de carpetas (Series/Seasons)

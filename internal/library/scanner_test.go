@@ -79,7 +79,6 @@ func TestProcessDirectory(t *testing.T) {
 func TestProcessFile(t *testing.T) {
 	db := setupTestDB()
 	
-	libRoot := "/media/movies"
 	libType := "movies"
 
 	t.Run("Create Movie File", func(t *testing.T) {
