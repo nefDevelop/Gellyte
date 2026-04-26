@@ -26,9 +26,19 @@ var userAddCmd = &cobra.Command{
 	},
 }
 
+var userDeleteCmd = &cobra.Command{
+	Use:   "delete [username]",
+	Short: "Elimina un usuario",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runUserDelete(args[0])
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(userCmd)
 	userCmd.AddCommand(userAddCmd)
+	userCmd.AddCommand(userDeleteCmd)
 	userAddCmd.Flags().Bool("admin", false, "Crear como administrador")
 }
 
@@ -55,4 +65,15 @@ func runUserAdd(username, password string, isAdmin bool) {
 	}
 
 	log.Printf("Usuario '%s' creado correctamente (Admin: %v, ID: %s)", username, isAdmin, user.ID)
+}
+
+func runUserDelete(username string) {
+	config.InitConfig()
+	database.InitDB()
+
+	if err := database.DB.Where("username = ?", username).Delete(&models.User{}).Error; err != nil {
+		log.Fatalf("Error eliminando usuario: %v", err)
+	}
+
+	log.Printf("Usuario '%s' eliminado correctamente", username)
 }
