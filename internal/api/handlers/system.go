@@ -11,7 +11,7 @@ import (
 
 // Constantes para evitar valores mágicos y facilitar la configuración.
 const (
-	serverVersion   = "10.9.11"
+	serverVersion   = "10.11.8"
 	productName     = "Jellyfin Server"
 	operatingSystem = "Linux"
 )

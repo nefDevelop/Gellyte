@@ -72,7 +72,7 @@ func TestGetSystemInfo(t *testing.T) {
 
 	var response SystemInfo
 	json.Unmarshal(w.Body.Bytes(), &response)
-	if response.Version != "10.11.8" {
+	if response.Version != serverVersion {
 		t.Errorf("Versión incorrecta: %s", response.Version)
 	}
 }
