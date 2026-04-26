@@ -58,13 +58,24 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 		authInfo = middleware.EmbyAuth{Client: "Generic", Device: "Unknown", DeviceId: "unknown", Version: "1.0.0"}
 	}
 
-	username := c.Query("username")
-	var pw string
+	// Intentar obtener credenciales de múltiples fuentes (JSON, Form, Query)
+	username := c.Query("Username")
+	if username == "" {
+		username = c.PostForm("Username")
+	}
+	pw := c.PostForm("Pw")
+
 	if err := c.ShouldBindJSON(&req); err == nil {
 		if username == "" {
 			username = req.Username
 		}
-		pw = req.Pw
+		if pw == "" {
+			pw = req.Pw
+		}
+	}
+
+	if username == "" {
+		username = c.Query("username") // Fallback lowercase
 	}
 
 	user, token, err := h.AuthService.Authenticate(username, pw, authInfo.DeviceId)
