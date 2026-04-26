@@ -10,7 +10,7 @@ import (
 
 // Constantes para evitar valores mágicos y facilitar la configuración.
 const (
-	serverVersion   = "10.11.8"
+	serverVersion   = "10.9.11"
 	productName     = "Jellyfin Server"
 	operatingSystem = "Linux"
 )
@@ -83,8 +83,8 @@ func (h *Handler) GetQuickConnectEnabled(c *gin.Context) {
 // InitiateQuickConnect godoc
 func (h *Handler) InitiateQuickConnect(c *gin.Context) {
 	// Aunque esté desactivado, algunos clientes llaman a este endpoint.
-	// Devolvemos un error 401 indicando que no está autorizado o simplemente desactivado.
-	c.JSON(http.StatusUnauthorized, gin.H{"error": "QuickConnect is disabled on this server"})
+	// Devolvemos un error 404 para que el cliente use el login tradicional.
+	c.JSON(http.StatusNotFound, gin.H{"error": "QuickConnect is not implemented on this server"})
 }
 
 // GetBrandingConfiguration godoc
