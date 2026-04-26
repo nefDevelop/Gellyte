@@ -67,7 +67,7 @@ func (h *Hub) Run() {
 }
 
 // GetDummySocket ahora es funcional usando Gorilla WebSocket
-func (h *Handler) GetDummySocket(c *gin.Context) {
+func (h *WebSocketHandler) GetDummySocket(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return

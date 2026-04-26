@@ -11,7 +11,7 @@ import (
 )
 
 // GetSessions godoc
-func (h *Handler) GetSessions(c *gin.Context) {
+func (h *SessionHandler) GetSessions(c *gin.Context) {
 	val, exists := c.Get("auth")
 	if !exists {
 		c.JSON(http.StatusOK, []SessionInfoDto{})

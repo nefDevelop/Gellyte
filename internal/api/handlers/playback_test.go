@@ -17,9 +17,9 @@ func setupPlaybackRouter() (*gin.Engine, *Handler) {
 	r := gin.Default()
 	h := setupHandler()
 	
-	r.GET("/Items/:id/PlaybackInfo", h.GetPlaybackInfo)
-	r.POST("/Sessions/Playing/Progress", h.ReportPlayingProgress)
-	r.GET("/Videos/:id/stream", h.StreamVideo)
+	r.GET("/Items/:id/PlaybackInfo", h.Playback.GetPlaybackInfo)
+	r.POST("/Sessions/Playing/Progress", h.Playback.ReportPlayingProgress)
+	r.GET("/Videos/:id/stream", h.Playback.StreamVideo)
 	
 	return r, h
 }

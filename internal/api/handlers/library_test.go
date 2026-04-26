@@ -19,14 +19,14 @@ func setupRouter() (*gin.Engine, *Handler) {
 	r := gin.Default()
 	h := setupHandler()
 	
-	r.GET("/Library/VirtualFolders", h.GetVirtualFolders)
-	r.GET("/Items", h.GetItems)
-	r.GET("/Items/:id", h.GetItemDetails)
-	r.GET("/Items/:id/Images/:imageType", h.GetItemImage)
-	r.GET("/Users/:id/Images/Primary", h.GetUserPrimaryImage)
-	r.GET("/Shows/NextUp", h.GetNextUp)
-	r.GET("/Items/Resume", h.GetResumeItems)
-	r.GET("/Suggestions", h.GetSuggestions)
+	r.GET("/Library/VirtualFolders", h.Library.GetVirtualFolders)
+	r.GET("/Items", h.Library.GetItems)
+	r.GET("/Items/:id", h.Library.GetItemDetails)
+	r.GET("/Items/:id/Images/:imageType", h.Library.GetItemImage)
+	r.GET("/Users/:id/Images/Primary", h.Auth.GetUserPrimaryImage)
+	r.GET("/Shows/NextUp", h.Library.GetNextUp)
+	r.GET("/Items/Resume", h.Library.GetResumeItems)
+	r.GET("/Suggestions", h.Library.GetSuggestions)
 	
 	return r, h
 }

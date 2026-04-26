@@ -16,10 +16,10 @@ func setupSystemRouter() (*gin.Engine, *Handler) {
 	r := gin.Default()
 	h := setupHandler()
 	
-	r.GET("/System/Info/Public", h.GetPublicInfo)
-	r.GET("/System/Info", h.GetSystemInfo)
-	r.GET("/System/Ping", h.GetPingSystem)
-	r.GET("/System/Endpoint", h.GetEndpointInfo)
+	r.GET("/System/Info/Public", h.System.GetPublicInfo)
+	r.GET("/System/Info", h.System.GetSystemInfo)
+	r.GET("/System/Ping", h.System.GetPingSystem)
+	r.GET("/System/Endpoint", h.System.GetEndpointInfo)
 	
 	return r, h
 }
@@ -72,7 +72,7 @@ func TestGetSystemInfo(t *testing.T) {
 
 	var response SystemInfo
 	json.Unmarshal(w.Body.Bytes(), &response)
-	if response.Version != serverVersion {
+	if response.Version != ServerVersion {
 		t.Errorf("Versión incorrecta: %s", response.Version)
 	}
 }

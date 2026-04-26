@@ -10,7 +10,7 @@ import (
 )
 
 // GetItemsCounts godoc
-func (h *Handler) GetItemsCounts(c *gin.Context) {
+func (h *LibraryHandler) GetItemsCounts(c *gin.Context) {
 	var movieCount, seriesCount, episodeCount int64
 	
 	_, movieCount, _ = h.LibraryService.GetItems(services.GetItemsParams{ItemTypes: []string{"Movie"}, Limit: 1})
@@ -34,7 +34,7 @@ func (h *Handler) GetItemsCounts(c *gin.Context) {
 }
 
 // GetItemsFilters godoc
-func (h *Handler) GetItemsFilters(c *gin.Context) {
+func (h *LibraryHandler) GetItemsFilters(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Genres":          []string{},
 		"Tags":            []string{},
@@ -44,7 +44,7 @@ func (h *Handler) GetItemsFilters(c *gin.Context) {
 }
 
 // GetItemsRoot godoc
-func (h *Handler) GetItemsRoot(c *gin.Context) {
+func (h *LibraryHandler) GetItemsRoot(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Name":           "Server",
 		"Id":             config.AppConfig.Jellyfin.ServerUUID,
@@ -55,7 +55,7 @@ func (h *Handler) GetItemsRoot(c *gin.Context) {
 }
 
 // GetMediaFolders godoc
-func (h *Handler) GetMediaFolders(c *gin.Context) {
+func (h *LibraryHandler) GetMediaFolders(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Items": []gin.H{
 			{
@@ -78,17 +78,17 @@ func (h *Handler) GetMediaFolders(c *gin.Context) {
 }
 
 // GetPhysicalPaths godoc
-func (h *Handler) GetPhysicalPaths(c *gin.Context) {
+func (h *LibraryHandler) GetPhysicalPaths(c *gin.Context) {
 	c.JSON(http.StatusOK, []string{})
 }
 
 // GetGroupingOptions godoc
-func (h *Handler) GetGroupingOptions(c *gin.Context) {
+func (h *LibraryHandler) GetGroupingOptions(c *gin.Context) {
 	c.JSON(http.StatusOK, []gin.H{})
 }
 
 // GetShowEpisodes godoc
-func (h *Handler) GetShowEpisodes(c *gin.Context) {
+func (h *LibraryHandler) GetShowEpisodes(c *gin.Context) {
 	seriesId := c.Param("id")
 	if seriesId == "" {
 		seriesId = c.Query("seriesId")
@@ -131,7 +131,7 @@ func (h *Handler) GetShowEpisodes(c *gin.Context) {
 
 	respItems := []BaseItemDto{}
 	for _, item := range items {
-		respItems = append(respItems, h.mapToDto(item, userId))
+		respItems = append(respItems, h.mapItem(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -141,7 +141,7 @@ func (h *Handler) GetShowEpisodes(c *gin.Context) {
 }
 
 // GetShowSeasons godoc
-func (h *Handler) GetShowSeasons(c *gin.Context) {
+func (h *LibraryHandler) GetShowSeasons(c *gin.Context) {
 	seriesId := c.Param("id")
 
 	items, total, _ := h.LibraryService.GetItems(services.GetItemsParams{ParentID: seriesId, ItemTypes: []string{"Season"}})
@@ -153,7 +153,7 @@ func (h *Handler) GetShowSeasons(c *gin.Context) {
 
 	respItems := []BaseItemDto{}
 	for _, item := range items {
-		respItems = append(respItems, h.mapToDto(item, userId))
+		respItems = append(respItems, h.mapItem(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{

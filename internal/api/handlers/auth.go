@@ -17,7 +17,7 @@ type AuthRequest struct {
 	Pw       string `json:"Pw"`
 }
 
-func (h *Handler) GetPublicUsers(c *gin.Context) {
+func (h *AuthHandler) GetPublicUsers(c *gin.Context) {
 	users, err := h.AuthService.GetAllUsers()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -50,7 +50,7 @@ func (h *Handler) GetPublicUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-func (h *Handler) AuthenticateByName(c *gin.Context) {
+func (h *AuthHandler) AuthenticateByName(c *gin.Context) {
 	var req AuthRequest
 	clientAuth, _ := c.Get("auth")
 	authInfo, ok := clientAuth.(middleware.EmbyAuth)
@@ -188,7 +188,7 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 	c.Data(http.StatusOK, "application/json; profile=\"PascalCase\"", jsonBytes)
 }
 
-func (h *Handler) GetCurrentUser(c *gin.Context) {
+func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	users, _ := h.AuthService.GetAllUsers()
 	var adminUser *models.User
 	for _, u := range users {
@@ -226,7 +226,7 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 	})
 }
 
-func (h *Handler) GetUserById(c *gin.Context) {
+func (h *AuthHandler) GetUserById(c *gin.Context) {
 	id := c.Param("id")
 	user, err := h.AuthService.GetUserByID(id)
 	if err != nil {
@@ -256,7 +256,7 @@ func (h *Handler) GetUserById(c *gin.Context) {
 	})
 }
 
-func (h *Handler) GetUserViews(c *gin.Context) {
+func (h *AuthHandler) GetUserViews(c *gin.Context) {
 	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
 	
 	views := []BaseItemDto{
@@ -291,7 +291,7 @@ func (h *Handler) GetUserViews(c *gin.Context) {
 	})
 }
 
-func (h *Handler) GetDisplayPreferences(c *gin.Context) {
+func (h *AuthHandler) GetDisplayPreferences(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Id":               "default",
 		"ViewType":         "Default",
@@ -377,4 +377,18 @@ func getDefaultConfigurationDto() UserConfiguration {
 		EnableNextEpisodeAutoPlay:  true,
 		CastReceiverId:             "",
 	}
+}
+
+func (h *SessionHandler) Logout(c *gin.Context) {
+	c.Status(http.StatusNoContent)
+}
+
+func (h *AuthHandler) GetUserPrimaryImage(c *gin.Context) {
+	svg := `<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#00a5ff"/><text x="50%" y="50%" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dy=".3em">G</text></svg>`
+	c.Header("Content-Type", "image/svg+xml")
+	c.String(http.StatusOK, svg)
+}
+
+func (h *AuthHandler) GetUserImage(c *gin.Context) {
+	h.GetUserPrimaryImage(c)
 }

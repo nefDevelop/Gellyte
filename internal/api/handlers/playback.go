@@ -16,7 +16,7 @@ import (
 )
 
 // GetPlaybackInfo godoc
-func (h *Handler) GetPlaybackInfo(c *gin.Context) {
+func (h *PlaybackHandler) GetPlaybackInfo(c *gin.Context) {
 	id := c.Param("id")
 
 	item, err := h.PlaybackService.GetItem(id)
@@ -69,7 +69,7 @@ func (h *Handler) GetPlaybackInfo(c *gin.Context) {
 }
 
 // StreamVideo godoc
-func (h *Handler) StreamVideo(c *gin.Context) {
+func (h *PlaybackHandler) StreamVideo(c *gin.Context) {
 	id := c.Param("id")
 
 	item, err := h.PlaybackService.GetItem(id)
@@ -98,12 +98,12 @@ func (h *Handler) StreamVideo(c *gin.Context) {
 }
 
 // ReportPlaying godoc
-func (h *Handler) ReportPlaying(c *gin.Context) {
+func (h *PlaybackHandler) ReportPlaying(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
 // ReportPlayingProgress godoc
-func (h *Handler) ReportPlayingProgress(c *gin.Context) {
+func (h *PlaybackHandler) ReportPlayingProgress(c *gin.Context) {
 	var req struct {
 		ItemId        string `json:"ItemId"`
 		PositionTicks int64  `json:"PositionTicks"`
@@ -129,7 +129,7 @@ func (h *Handler) ReportPlayingProgress(c *gin.Context) {
 }
 
 // ReportPlayingStopped godoc
-func (h *Handler) ReportPlayingStopped(c *gin.Context) {
+func (h *PlaybackHandler) ReportPlayingStopped(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
@@ -173,7 +173,7 @@ func parseTranscodeOptions(c *gin.Context, item models.MediaItem) transcoder.Tra
 }
 
 // TranscodeVideo maneja la transcodificación en tiempo real.
-func (h *Handler) TranscodeVideo(c *gin.Context) {
+func (h *PlaybackHandler) TranscodeVideo(c *gin.Context) {
 	id := c.Param("id")
 	item, err := h.PlaybackService.GetItem(id)
 	if err != nil {
@@ -213,7 +213,7 @@ func (h *Handler) TranscodeVideo(c *gin.Context) {
 }
 
 // GetHlsPlaylist genera un archivo .m3u8 dinámico para el video.
-func (h *Handler) GetHlsPlaylist(c *gin.Context) {
+func (h *PlaybackHandler) GetHlsPlaylist(c *gin.Context) {
 	id := c.Param("id")
 	item, err := h.PlaybackService.GetItem(id)
 	if err != nil {
@@ -257,7 +257,7 @@ func (h *Handler) GetHlsPlaylist(c *gin.Context) {
 }
 
 // GetHlsSegment transcodifica y sirve un trozo específico de 10 segundos.
-func (h *Handler) GetHlsSegment(c *gin.Context) {
+func (h *PlaybackHandler) GetHlsSegment(c *gin.Context) {
 	id := c.Param("id")
 	segmentIdRaw := c.Param("segmentId")
 	segmentIdx, _ := strconv.Atoi(segmentIdRaw)
@@ -294,7 +294,7 @@ func (h *Handler) GetHlsSegment(c *gin.Context) {
 }
 
 // GetSubtitleStream extrae subtítulos embebidos al vuelo en formato WebVTT compatible con web.
-func (h *Handler) GetSubtitleStream(c *gin.Context) {
+func (h *PlaybackHandler) GetSubtitleStream(c *gin.Context) {
 	id := c.Param("id")
 	indexRaw := c.Param("index")
 	index, err := strconv.Atoi(indexRaw)

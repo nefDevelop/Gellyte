@@ -34,10 +34,15 @@ func EmbyAuthMiddleware() gin.HandlerFunc {
 
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Emby-Authorization, X-Emby-Token, X-MediaBrowser-Token, accept, origin, Cache-Control, X-Requested-With, Range")
+		origin := c.Request.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
+		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Emby-Authorization, X-Emby-Token, X-MediaBrowser-Token, accept, origin, Cache-Control, X-Requested-With, Range, X-Emby-Device-Id, X-Emby-Device-Name, X-Emby-Client, X-Emby-Client-Version")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
-		c.Writer.Header().Set("Access-Control-Expose-Headers", "X-Emby-Token, X-Emby-Authorization, X-MediaBrowser-Token, Content-Range, Accept-Ranges, Content-Length, Content-Encoding")
+		c.Writer.Header().Set("Access-Control-Expose-Headers", "X-Emby-Token, X-Emby-Authorization, X-MediaBrowser-Token, Content-Range, Accept-Ranges, Content-Length, Content-Encoding, X-Emby-Version")
 		c.Writer.Header().Set("Server", "Kestrel")
 		c.Writer.Header().Set("X-Emby-Version", "10.11.8")
 		c.Writer.Header().Set("X-Powered-By", "ASP.NET")

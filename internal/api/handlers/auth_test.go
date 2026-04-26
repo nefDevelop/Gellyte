@@ -18,12 +18,12 @@ func setupAuthRouter() (*gin.Engine, *Handler) {
 	r := gin.Default()
 	h := setupHandler()
 	
-	r.GET("/Users/Public", h.GetPublicUsers)
-	r.POST("/Users/AuthenticateByName", h.AuthenticateByName)
-	r.GET("/Users/Me", h.GetCurrentUser)
-	r.GET("/Users/:id", h.GetUserById)
-	r.GET("/Users/:id/Views", h.GetUserViews)
-	r.GET("/DisplayPreferences/:id", h.GetDisplayPreferences)
+	r.GET("/Users/Public", h.Auth.GetPublicUsers)
+	r.POST("/Users/AuthenticateByName", h.Auth.AuthenticateByName)
+	r.GET("/Users/Me", h.Auth.GetCurrentUser)
+	r.GET("/Users/:id", h.Auth.GetUserById)
+	r.GET("/Users/:id/Views", h.Auth.GetUserViews)
+	r.GET("/DisplayPreferences/:id", h.Auth.GetDisplayPreferences)
 	
 	return r, h
 }

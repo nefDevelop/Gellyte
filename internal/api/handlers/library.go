@@ -6,16 +6,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
-
 	"github.com/gellyte/gellyte/internal/config"
-	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
 // GetVirtualFolders godoc
-func (h *Handler) GetVirtualFolders(c *gin.Context) {
+func (h *LibraryHandler) GetVirtualFolders(c *gin.Context) {
 	libOptions := LibraryOptions{
 		Enabled:               true,
 		EnableRealtimeMonitor: true,
@@ -49,7 +46,7 @@ func (h *Handler) GetVirtualFolders(c *gin.Context) {
 	c.JSON(http.StatusOK, folders)
 }
 
-func (h *Handler) GetItems(c *gin.Context) {
+func (h *LibraryHandler) GetItems(c *gin.Context) {
 	startIndex, _ := strconv.Atoi(c.DefaultQuery("StartIndex", "0"))
 	if startIndex == 0 {
 		startIndex, _ = strconv.Atoi(c.Query("startIndex"))
@@ -121,7 +118,7 @@ func (h *Handler) GetItems(c *gin.Context) {
 
 	respItems := []BaseItemDto{}
 	for _, item := range dbItems {
-		respItems = append(respItems, h.mapToDto(item, userId))
+		respItems = append(respItems, h.mapItem(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -131,7 +128,7 @@ func (h *Handler) GetItems(c *gin.Context) {
 	})
 }
 
-func (h *Handler) GetItemDetails(c *gin.Context) {
+func (h *LibraryHandler) GetItemDetails(c *gin.Context) {
 	id := c.Param("id")
 
 	// Verificar si es una carpeta virtual (biblioteca raíz)
@@ -169,10 +166,10 @@ func (h *Handler) GetItemDetails(c *gin.Context) {
 		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
-	c.JSON(http.StatusOK, h.mapToDto(*item, userId))
+	c.JSON(http.StatusOK, h.mapItem(*item, userId))
 }
 
-func (h *Handler) GetItemImage(c *gin.Context) {
+func (h *LibraryHandler) GetItemImage(c *gin.Context) {
 	id := c.Param("id")
 	item, err := h.LibraryService.GetItem(id)
 	if err != nil {
@@ -180,31 +177,36 @@ func (h *Handler) GetItemImage(c *gin.Context) {
 		return
 	}
 
-	// Buscar thumb.jpg en la misma carpeta que el archivo de video
 	dir := filepath.Dir(item.Path)
-	thumbPath := filepath.Join(dir, "thumb.jpg")
+	filename := filepath.Base(item.Path)
+	nameWithoutExt := filename[:len(filename)-len(filepath.Ext(filename))]
 
-	if _, err := os.Stat(thumbPath); err == nil {
-		c.File(thumbPath)
-		return
+	// Lista de nombres comunes para carátulas (Primary)
+	possibleNames := []string{
+		"poster.jpg", "poster.png",
+		"folder.jpg", "folder.png",
+		"cover.jpg", "cover.png",
+		"thumb.jpg", "thumb.png",
+		nameWithoutExt + ".jpg",
+		nameWithoutExt + ".png",
 	}
 
-	c.Status(http.StatusNotFound)
-}
+	for _, name := range possibleNames {
+		p := filepath.Join(dir, name)
+		if _, err := os.Stat(p); err == nil {
+			c.File(p)
+			return
+		}
+	}
 
-func (h *Handler) GetUserPrimaryImage(c *gin.Context) {
-	// Jellyfin envía SVGs simples o imágenes para el avatar del usuario
-	svg := `<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#00a5ff"/><text x="50%" y="50%" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dy=".3em">G</text></svg>`
+	// Si no hay imagen, devolvemos un placeholder SVG para que la app no se vea rota
+	placeholder := `<svg width="200" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="300" fill="#333"/><text x="50%" y="50%" font-family="Arial" font-size="20" fill="#555" text-anchor="middle" dy=".3em">Sin Imagen</text></svg>`
 	c.Header("Content-Type", "image/svg+xml")
-	c.String(http.StatusOK, svg)
+	c.String(http.StatusOK, placeholder)
 }
 
-func (h *Handler) GetUserImage(c *gin.Context) {
-	// Alias para GetUserPrimaryImage usado por algunos clientes
-	h.GetUserPrimaryImage(c)
-}
 
-func (h *Handler) GetNextUp(c *gin.Context) {
+func (h *LibraryHandler) GetNextUp(c *gin.Context) {
 	userId := c.GetString("UserID")
 	if userId == "" {
 		userId = config.AppConfig.Jellyfin.AdminUUID
@@ -219,7 +221,7 @@ func (h *Handler) GetNextUp(c *gin.Context) {
 
 	respItems := []BaseItemDto{}
 	for _, item := range items {
-		respItems = append(respItems, h.mapToDto(item, userId))
+		respItems = append(respItems, h.mapItem(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -228,7 +230,7 @@ func (h *Handler) GetNextUp(c *gin.Context) {
 	})
 }
 
-func (h *Handler) GetResumeItems(c *gin.Context) {
+func (h *LibraryHandler) GetResumeItems(c *gin.Context) {
 	userId := c.GetString("UserID")
 	if userId == "" {
 		userId = config.AppConfig.Jellyfin.AdminUUID
@@ -243,7 +245,7 @@ func (h *Handler) GetResumeItems(c *gin.Context) {
 
 	respItems := []BaseItemDto{}
 	for _, item := range items {
-		respItems = append(respItems, h.mapToDto(item, userId))
+		respItems = append(respItems, h.mapItem(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -252,7 +254,7 @@ func (h *Handler) GetResumeItems(c *gin.Context) {
 	})
 }
 
-func (h *Handler) GetSuggestions(c *gin.Context) {
+func (h *LibraryHandler) GetSuggestions(c *gin.Context) {
 	userId := c.Query("userId")
 	if userId == "" {
 		userId = config.AppConfig.Jellyfin.AdminUUID
@@ -267,7 +269,7 @@ func (h *Handler) GetSuggestions(c *gin.Context) {
 
 	respItems := []BaseItemDto{}
 	for _, item := range items {
-		respItems = append(respItems, h.mapToDto(item, userId))
+		respItems = append(respItems, h.mapItem(item, userId))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -277,7 +279,7 @@ func (h *Handler) GetSuggestions(c *gin.Context) {
 }
 
 // GetLatestItems godoc
-func (h *Handler) GetLatestItems(c *gin.Context) {
+func (h *LibraryHandler) GetLatestItems(c *gin.Context) {
 	userId := c.GetString("UserID")
 	if userId == "" {
 		userId = config.AppConfig.Jellyfin.AdminUUID
@@ -298,76 +300,26 @@ func (h *Handler) GetLatestItems(c *gin.Context) {
 
 	respItems := []BaseItemDto{}
 	for _, item := range items {
-		respItems = append(respItems, h.mapToDto(item, userId))
+		respItems = append(respItems, h.mapItem(item, userId))
 	}
 
 	c.JSON(http.StatusOK, respItems)
 }
 
-func (h *Handler) GetSpecialFeatures(c *gin.Context) {
+func (h *LibraryHandler) GetSpecialFeatures(c *gin.Context) {
 	c.JSON(http.StatusOK, []interface{}{})
 }
 
-func (h *Handler) GetAncestors(c *gin.Context) {
+func (h *LibraryHandler) GetAncestors(c *gin.Context) {
 	c.JSON(http.StatusOK, []interface{}{})
 }
 
-func (h *Handler) GetSimilarItems(c *gin.Context) {
+func (h *LibraryHandler) GetSimilarItems(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0})
 }
 
-func (h *Handler) GetMediaSegments(c *gin.Context) {
+func (h *LibraryHandler) GetMediaSegments(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0})
 }
 
-// mapToDto convierte un modelo de BD a un objeto de respuesta compatible con Jellyfin.
-func (h *Handler) mapToDto(item models.MediaItem, userId string) BaseItemDto {
-	// Obtener datos extras del usuario (progreso, favoritos, etc)
-	userData, _ := h.LibraryService.GetUserData(userId, item.ID)
-	
-	userDataDto := UserItemDataDto{
-		IsFavorite: false,
-		Played:     false,
-	}
-	if userData != nil {
-		userDataDto = UserItemDataDto{
-			PlaybackPositionTicks: userData.PlaybackPositionTicks,
-			PlayCount:             userData.PlayCount,
-			IsFavorite:            userData.IsFavorite,
-			Played:                userData.Played,
-			LastPlayedDate:        userData.LastPlayedDate.Format(time.RFC3339),
-		}
-	}
 
-	dto := BaseItemDto{
-		Name:         item.Name,
-		Id:           item.ID,
-		ServerId:     config.AppConfig.Jellyfin.ServerUUID,
-		Type:         item.Type,
-		RunTimeTicks: item.RunTimeTicks,
-		IsFolder:     item.Type == "Series" || item.Type == "Season" || item.Type == "Folder" || item.Type == "CollectionFolder",
-		ImageTags: map[string]string{
-			"Primary": "tag", // Dummy tag para activar carga de imágenes en el cliente
-		},
-		UserData: userDataDto,
-	}
-
-	if item.ProductionYear > 0 {
-		dto.ProductionYear = item.ProductionYear
-	}
-	if item.Overview != "" {
-		dto.Overview = item.Overview
-	}
-
-	// Si es un episodio, añadir Season/Series data
-	if item.Type == "Episode" {
-		dto.IndexNumber = item.IndexNumber
-		dto.ParentIndexNumber = item.ParentIndexNumber
-		dto.SeriesName = item.SeriesName
-		dto.SeriesId = item.SeriesID
-		dto.SeasonId = item.ParentID
-		dto.SeasonName = item.SeasonName
-	}
-
-	return dto
-}
