@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gellyte/gellyte/internal/api/middleware"
@@ -76,6 +79,17 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
+	deviceType := "Mobile"
+	clientLower := strings.ToLower(authInfo.Client)
+	deviceLower := strings.ToLower(authInfo.Device)
+	if strings.Contains(clientLower, "tv") || strings.Contains(deviceLower, "tv") || strings.Contains(clientLower, "box") {
+		deviceType = "Tv"
+	}
+
+	// Crear un SessionId consistente (MD5 del deviceId)
+	sHash := md5.Sum([]byte(authInfo.DeviceId))
+	sessionId := hex.EncodeToString(sHash[:])
+
 	authResult := AuthenticationResult{
 		User: UserDto{
 			Name:                      user.Username,
@@ -102,7 +116,7 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 			},
 			RemoteEndPoint:        c.ClientIP(),
 			PlayableMediaTypes:    []string{"Video"},
-			Id:                    token,
+			Id:                    sessionId,
 			UserId:                user.ID,
 			UserName:              user.Username,
 			Client:                authInfo.Client,
@@ -110,7 +124,7 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 			LastPlaybackCheckIn:   now,
 			LastPausedDate:        nil,
 			DeviceName:            authInfo.Device,
-			DeviceType:            "Mobile",
+			DeviceType:            deviceType,
 			DeviceId:              authInfo.DeviceId,
 			ApplicationVersion:    authInfo.Version,
 			IsActive:              true,
