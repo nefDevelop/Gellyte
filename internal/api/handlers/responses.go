@@ -70,6 +70,8 @@ type UserConfiguration struct {
 	RememberSubtitleSelections bool     `json:"RememberSubtitleSelections"`
 	EnableNextEpisodeAutoPlay  bool     `json:"EnableNextEpisodeAutoPlay"`
 	CastReceiverId             string   `json:"CastReceiverId"`
+	ResumePlayerState          bool     `json:"ResumePlayerState"`
+	SyncPlayLikes              bool     `json:"SyncPlayLikes"`
 }
 
 type UserPolicy struct {
@@ -120,10 +122,10 @@ type UserPolicy struct {
 }
 
 type AuthenticationResult struct {
-	User        UserDto        `json:"User"`
-	SessionInfo SessionInfoDto `json:"SessionInfo"`
-	AccessToken string         `json:"AccessToken"`
-	ServerId    string         `json:"ServerId"`
+	User        UserDto         `json:"User"`
+	SessionInfo *SessionInfoDto `json:"SessionInfo"`
+	AccessToken string          `json:"AccessToken"`
+	ServerId    string          `json:"ServerId"`
 }
 
 type SessionInfoDto struct {

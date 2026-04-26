@@ -29,9 +29,9 @@ func (h *Handler) GetPublicUsers(c *gin.Context) {
 	for _, u := range users {
 		userObj := UserDto{
 			Name:                      u.Username,
-			ServerId:                  config.AppConfig.Jellyfin.ServerUUID,
+			ServerId:                  strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", ""),
 			ServerName:                config.AppConfig.Server.Name,
-			Id:                        u.ID,
+			Id:                        strings.ReplaceAll(u.ID, "-", ""),
 			HasPassword:               true,
 			HasConfiguredPassword:     true,
 			HasConfiguredEasyPassword: true,
@@ -90,80 +90,37 @@ func (h *Handler) AuthenticateByName(c *gin.Context) {
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	deviceType := "Mobile"
-	clientLower := strings.ToLower(authInfo.Client)
-	deviceLower := strings.ToLower(authInfo.Device)
-	if strings.Contains(clientLower, "tv") || strings.Contains(deviceLower, "tv") || strings.Contains(clientLower, "box") {
-		deviceType = "Tv"
-	}
+	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
+	uId := strings.ReplaceAll(user.ID, "-", "")
 
 	authResult := AuthenticationResult{
 		User: UserDto{
 			Name:                      user.Username,
-			ServerId:                  config.AppConfig.Jellyfin.ServerUUID,
+			ServerId:                  sId,
 			ServerName:                config.AppConfig.Server.Name,
-			Id:                        user.ID,
+			Id:                        uId,
 			HasPassword:               true,
 			HasConfiguredPassword:     true,
 			HasConfiguredEasyPassword: true,
 			EnableAutoLogin:           true,
 			LastLoginDate:             now,
 			LastActivityDate:          now,
-			Configuration:             getDefaultConfigurationDto(),
-			Policy:                    getDefaultPolicyDto(user.IsAdmin),
-			PrimaryImageAspectRatio:   1.0,
-			PrimaryImageTag:           "tag",
-		},
-		SessionInfo: SessionInfoDto{
-			PlayState: PlayerStateInfo{
-				CanSeek:     true,
-				VolumeLevel: 100,
-				PlayMethod:  "DirectPlay",
-				RepeatMode:  "RepeatNone",
+			Configuration: UserConfiguration{
+				AudioLanguagePreference:    "es",
+				SubtitleLanguagePreference: "es",
+				DisplayMissingEpisodes:     true,
+				SubtitleMode:               "Default",
+				EnableNextEpisodeAutoPlay:  true,
+				ResumePlayerState:          true,
+				SyncPlayLikes:              true,
 			},
-			RemoteEndPoint:        c.ClientIP(),
-			PlayableMediaTypes:    []string{"Video"},
-			Id:                    token,
-			UserId:                user.ID,
-			UserName:              user.Username,
-			Client:                authInfo.Client,
-			LastActivityDate:      now,
-			LastPlaybackCheckIn:   now,
-			LastPausedDate:        nil,
-			DeviceName:            authInfo.Device,
-			DeviceType:            deviceType,
-			DeviceId:              authInfo.DeviceId,
-			ApplicationVersion:    authInfo.Version,
-			IsActive:              true,
-			SupportsMediaControl:  true,
-			SupportsRemoteControl: true,
-			NowPlayingItem:        nil,
-			NowViewingItem:        nil,
-			ServerId:              config.AppConfig.Jellyfin.ServerUUID,
-			SupportedCommands:     []string{"Play", "Pause", "Stop", "Seek", "NextTrack", "PreviousTrack"},
-			NowPlayingQueue:       []interface{}{},
-			Capabilities: ClientCapabilities{
-				PlayableMediaTypes:           []string{"Video"},
-				SupportedCommands:            []string{"Play", "Pause", "Stop", "Seek", "NextTrack", "PreviousTrack"},
-				SupportsMediaControl:         true,
-				SupportsPersistentIdentifier: true,
-				SupportsSync:                 false,
-				DeviceProfile: gin.H{
-					"Name":                authInfo.Device,
-					"SupportedMediaTypes": []string{"Video"},
-					"DirectPlayProfiles":  []interface{}{},
-					"TranscodingProfiles": []interface{}{},
-					"ContainerProfiles":   []interface{}{},
-					"CodecProfiles":       []interface{}{},
-					"SubtitleProfiles":    []interface{}{},
-				},
-				AppStoreUrl: "",
-				IconUrl:     "",
-			},
-			AdditionalUsers: []interface{}{},
+			Policy:                  getDefaultPolicyDto(user.IsAdmin),
+			PrimaryImageAspectRatio: 1.0,
+			PrimaryImageTag:         "tag",
 		},
+		SessionInfo: nil,
 		AccessToken: token,
-		ServerId:    config.AppConfig.Jellyfin.ServerUUID,
+		ServerId:    sId,
 	}
 
 	c.Header("Content-Type", "application/json")
@@ -224,8 +181,8 @@ func (h *Handler) GetUserById(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"Name":                      user.Username,
-		"Id":                        user.ID,
-		"ServerId":                  config.AppConfig.Jellyfin.ServerUUID,
+		"Id":                        strings.ReplaceAll(user.ID, "-", ""),
+		"ServerId":                  strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", ""),
 		"PrimaryImageTag":           "tag",
 		"HasPassword":               true,
 		"HasConfiguredPassword":     true,
