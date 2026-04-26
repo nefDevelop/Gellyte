@@ -80,11 +80,12 @@ func (h *Handler) StreamVideo(c *gin.Context) {
 
 	if c.Query("Static") == "true" {
 		mimeType := "video/" + item.Container
-		if item.Container == "mkv" {
+		switch item.Container {
+		case "mkv":
 			mimeType = "video/x-matroska"
-		} else if item.Container == "avi" {
+		case "avi":
 			mimeType = "video/x-msvideo"
-		} else if item.Container == "m4v" {
+		case "m4v":
 			mimeType = "video/mp4"
 		}
 

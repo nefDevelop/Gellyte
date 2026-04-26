@@ -91,10 +91,11 @@ func (h *Handler) GetItems(c *gin.Context) {
 	seriesLibNorm := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
 
 	actualParentID := parentId
-	if parentId == moviesLibNorm {
+	switch parentId {
+	case moviesLibNorm:
 		itemTypes = []string{"Movie"}
 		actualParentID = ""
-	} else if parentId == seriesLibNorm {
+	case seriesLibNorm:
 		itemTypes = []string{"Series"}
 		actualParentID = ""
 	}
@@ -138,7 +139,8 @@ func (h *Handler) GetItemDetails(c *gin.Context) {
 	seriesLibNorm := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
 	idNorm := strings.ReplaceAll(id, "-", "")
 
-	if idNorm == moviesLibNorm {
+	switch idNorm {
+	case moviesLibNorm:
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Películas",
 			"Id":             config.AppConfig.Jellyfin.MoviesLibraryID,
@@ -146,7 +148,7 @@ func (h *Handler) GetItemDetails(c *gin.Context) {
 			"CollectionType": "movies",
 		})
 		return
-	} else if idNorm == seriesLibNorm {
+	case seriesLibNorm:
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Series",
 			"Id":             config.AppConfig.Jellyfin.SeriesLibraryID,
