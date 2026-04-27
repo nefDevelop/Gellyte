@@ -35,6 +35,8 @@ func MapMediaItemToDto(item models.MediaItem, userData *models.UserItemData, ser
 			"Primary": "tag",
 		},
 		UserData: userDataDto,
+		Width:    item.Width,
+		Height:   item.Height,
 	}
 
 	if item.ProductionYear > 0 {
