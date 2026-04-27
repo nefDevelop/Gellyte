@@ -46,7 +46,7 @@ echo "Encontrados $COUNT ítems para el test."
 
 echo "-> Escaneando inteligentemente TODO el catálogo para garantizar testeo en 4K, 1080p y SD..."
 # Extraemos al instante el ID y el Ancho (Width) de cada video desde la respuesta JSON gigante
-ITEM_STATS=$(echo "$RAW_RESP" | sed 's/},{/}\n{/g' | grep '"Width":' | sed -E 's/.*"Id":"([^"]+)".*"Width":([0-9]+).*/\1 \2/')
+ITEM_STATS=$(echo "$RAW_RESP" | awk -v RS='"Id":"' 'NR>1 {print $0}' | grep '"Width":' | sed -E 's/^([^"]+)".*"Width": *([0-9]+).*/\1 \2/')
 
 # Clasificamos usando el Width (Ancho) ya que el Height varía en películas formato cine/ultrawide
 HIGH_RES_IDS=$(echo "$ITEM_STATS" | awk '$2 >= 2560 {print $1}' | sort -R | head -n 3 | tr '\n' ' ')
