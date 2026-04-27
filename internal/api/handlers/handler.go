@@ -4,6 +4,7 @@ import (
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/services"
+	"github.com/gellyte/gellyte/pkg/utils"
 )
 
 type baseHandler struct {
@@ -12,7 +13,8 @@ type baseHandler struct {
 
 // mapItem es una utilidad común para convertir MediaItem a DTO obteniendo datos de usuario.
 func (b *baseHandler) mapItem(item models.MediaItem, userId string) BaseItemDto {
-	userData, _ := b.LibraryService.GetUserData(userId, item.ID)
+	normUserId := utils.NormalizeID(userId)
+	userData, _ := b.LibraryService.GetUserData(normUserId, item.ID)
 	sId := config.AppConfig.Jellyfin.ServerUUID
 	return MapMediaItemToDto(item, userData, sId)
 }

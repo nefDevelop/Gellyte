@@ -8,6 +8,7 @@ import (
 	"github.com/gellyte/gellyte/internal/api/middleware"
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
+	"github.com/gellyte/gellyte/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -238,7 +239,7 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 }
 
 func (h *AuthHandler) GetUserById(c *gin.Context) {
-	id := c.Param("id")
+	id := utils.NormalizeID(c.Param("id"))
 	user, err := h.AuthService.GetUserByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No encontrado"})
@@ -269,15 +270,15 @@ func (h *AuthHandler) GetUserById(c *gin.Context) {
 
 func (h *AuthHandler) GetUserViews(c *gin.Context) {
 	sId := config.AppConfig.Jellyfin.ServerUUID
-	moviesId := config.AppConfig.Jellyfin.MoviesLibraryID
-	seriesId := config.AppConfig.Jellyfin.SeriesLibraryID
+	moviesId := utils.NormalizeID(config.AppConfig.Jellyfin.MoviesLibraryID)
+	seriesId := utils.NormalizeID(config.AppConfig.Jellyfin.SeriesLibraryID)
 	now := time.Now().UTC().Format("2006-01-02T15:04:05.0000000Z")
 
 	views := []BaseItemDto{
 		{
 			Name:                    "Películas",
 			SortName:                "Películas",
-			Id:                      moviesId,
+			Id:                      config.AppConfig.Jellyfin.MoviesLibraryID,
 			Etag:                    moviesId,
 			ServerId:                sId,
 			Type:                    "CollectionFolder",
@@ -294,7 +295,7 @@ func (h *AuthHandler) GetUserViews(c *gin.Context) {
 		{
 			Name:                    "Series",
 			SortName:                "Series",
-			Id:                      seriesId,
+			Id:                      config.AppConfig.Jellyfin.SeriesLibraryID,
 			Etag:                    seriesId,
 			ServerId:                sId,
 			Type:                    "CollectionFolder",

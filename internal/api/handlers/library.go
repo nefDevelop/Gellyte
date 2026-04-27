@@ -10,6 +10,7 @@ import (
 
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/services"
+	"github.com/gellyte/gellyte/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -69,9 +70,9 @@ func (h *LibraryHandler) GetItems(c *gin.Context) {
 		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
-	parentId := c.Query("ParentId")
+	parentId := utils.NormalizeID(c.Query("ParentId"))
 	if parentId == "" {
-		parentId = c.Query("parentId")
+		parentId = utils.NormalizeID(c.Query("parentId"))
 	}
 	// No normalizar aquí para mantener los guiones si vienen en la query
 	itemTypesStr := c.Query("IncludeItemTypes")
@@ -94,11 +95,14 @@ func (h *LibraryHandler) GetItems(c *gin.Context) {
 	var ids []string
 	if idsStr != "" {
 		ids = strings.Split(idsStr, ",")
+		for i, id := range ids {
+			ids[i] = utils.NormalizeID(id)
+		}
 	}
 
 	// Lógica de carpetas virtuales trasladada del handler al servicio/params
-	moviesLib := config.AppConfig.Jellyfin.MoviesLibraryID
-	seriesLib := config.AppConfig.Jellyfin.SeriesLibraryID
+	moviesLib := utils.NormalizeID(config.AppConfig.Jellyfin.MoviesLibraryID)
+	seriesLib := utils.NormalizeID(config.AppConfig.Jellyfin.SeriesLibraryID)
 
 	actualParentID := parentId
 	switch parentId {
@@ -137,17 +141,17 @@ func (h *LibraryHandler) GetItems(c *gin.Context) {
 }
 
 func (h *LibraryHandler) GetItemDetails(c *gin.Context) {
-	id := c.Param("id")
+	id := utils.NormalizeID(c.Param("id"))
 
 	// Verificar si es una carpeta virtual (biblioteca raíz)
-	moviesLib := config.AppConfig.Jellyfin.MoviesLibraryID
-	seriesLib := config.AppConfig.Jellyfin.SeriesLibraryID
+	moviesLib := utils.NormalizeID(config.AppConfig.Jellyfin.MoviesLibraryID)
+	seriesLib := utils.NormalizeID(config.AppConfig.Jellyfin.SeriesLibraryID)
 
 	switch id {
 	case moviesLib:
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Películas",
-			"Id":             moviesLib,
+			"Id":             config.AppConfig.Jellyfin.MoviesLibraryID,
 			"Type":           "CollectionFolder",
 			"CollectionType": "movies",
 		})
@@ -155,7 +159,7 @@ func (h *LibraryHandler) GetItemDetails(c *gin.Context) {
 	case seriesLib:
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Series",
-			"Id":             seriesLib,
+			"Id":             config.AppConfig.Jellyfin.SeriesLibraryID,
 			"Type":           "CollectionFolder",
 			"CollectionType": "tvshows",
 		})
@@ -177,11 +181,11 @@ func (h *LibraryHandler) GetItemDetails(c *gin.Context) {
 }
 
 func (h *LibraryHandler) GetItemImage(c *gin.Context) {
-	id := c.Param("id")
+	id := utils.NormalizeID(c.Param("id"))
 
 	// Si es una carpeta virtual (biblioteca raíz), devolvemos un placeholder temático
-	moviesLib := config.AppConfig.Jellyfin.MoviesLibraryID
-	seriesLib := config.AppConfig.Jellyfin.SeriesLibraryID
+	moviesLib := utils.NormalizeID(config.AppConfig.Jellyfin.MoviesLibraryID)
+	seriesLib := utils.NormalizeID(config.AppConfig.Jellyfin.SeriesLibraryID)
 
 	if id == moviesLib || id == seriesLib {
 		color := "#00a5ff" // Azul Jellyfin

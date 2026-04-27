@@ -12,12 +12,13 @@ import (
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/transcoder"
+	"github.com/gellyte/gellyte/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
 
 // GetPlaybackInfo godoc
 func (h *PlaybackHandler) GetPlaybackInfo(c *gin.Context) {
-	id := c.Param("id")
+	id := utils.NormalizeID(c.Param("id"))
 
 	item, err := h.PlaybackService.GetItem(id)
 	if err != nil {
@@ -70,7 +71,7 @@ func (h *PlaybackHandler) GetPlaybackInfo(c *gin.Context) {
 
 // StreamVideo godoc
 func (h *PlaybackHandler) StreamVideo(c *gin.Context) {
-	id := c.Param("id")
+	id := utils.NormalizeID(c.Param("id"))
 
 	item, err := h.PlaybackService.GetItem(id)
 	if err != nil {
@@ -120,9 +121,9 @@ func (h *PlaybackHandler) ReportPlayingProgress(c *gin.Context) {
 		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
-	err := h.PlaybackService.UpdateProgress(userId, req.ItemId, req.PositionTicks, req.IsPaused)
+	err := h.PlaybackService.UpdateProgress(userId, utils.NormalizeID(req.ItemId), req.PositionTicks, req.IsPaused)
 	if err == nil {
-		NotifyUserDataChanged(userId, req.ItemId)
+		NotifyUserDataChanged(userId, utils.NormalizeID(req.ItemId))
 	}
 
 	c.Status(http.StatusNoContent)
@@ -174,7 +175,7 @@ func parseTranscodeOptions(c *gin.Context, item models.MediaItem) transcoder.Tra
 
 // TranscodeVideo maneja la transcodificación en tiempo real.
 func (h *PlaybackHandler) TranscodeVideo(c *gin.Context) {
-	id := c.Param("id")
+	id := utils.NormalizeID(c.Param("id"))
 	item, err := h.PlaybackService.GetItem(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Video no encontrado"})
@@ -219,7 +220,7 @@ func (h *PlaybackHandler) TranscodeVideo(c *gin.Context) {
 
 // GetHlsPlaylist genera un archivo .m3u8 dinámico para el video.
 func (h *PlaybackHandler) GetHlsPlaylist(c *gin.Context) {
-	id := c.Param("id")
+	id := utils.NormalizeID(c.Param("id"))
 	item, err := h.PlaybackService.GetItem(id)
 	if err != nil {
 		c.Status(http.StatusNotFound)
@@ -263,7 +264,7 @@ func (h *PlaybackHandler) GetHlsPlaylist(c *gin.Context) {
 
 // GetHlsSegment transcodifica y sirve un trozo específico de 10 segundos.
 func (h *PlaybackHandler) GetHlsSegment(c *gin.Context) {
-	id := c.Param("id")
+	id := utils.NormalizeID(c.Param("id"))
 	segmentIdRaw := c.Param("segmentId")
 	segmentIdx, _ := strconv.Atoi(segmentIdRaw)
 
@@ -305,7 +306,7 @@ func (h *PlaybackHandler) GetHlsSegment(c *gin.Context) {
 
 // GetSubtitleStream extrae subtítulos embebidos al vuelo en formato WebVTT compatible con web.
 func (h *PlaybackHandler) GetSubtitleStream(c *gin.Context) {
-	id := c.Param("id")
+	id := utils.NormalizeID(c.Param("id"))
 	indexRaw := c.Param("index")
 	index, err := strconv.Atoi(indexRaw)
 	if err != nil {
