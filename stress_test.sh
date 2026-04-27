@@ -3,6 +3,7 @@
 # Gellyte EXTREME Stress Test & Memory Monitor
 SERVER_URL="${GELLYTE_URL:-http://localhost:8081}"
 CONCURRENCY=${CONCURRENCY:-20}
+TIMEOUT_SEC=${TIMEOUT_SEC:-15}
 
 get_mem() {
     echo -n "RAM en uso (HeapAlloc): "
@@ -36,6 +37,23 @@ if [ "$COUNT" -eq 0 ]; then
 fi
 echo "Encontrados $COUNT ítems para el test."
 
+echo "-> Analizando formatos de los primeros 3 ítems (los que se usarán para Transcodificación):"
+TEST_IDS=$(echo "$ALL_IDS" | head -n 3)
+for id in $TEST_IDS; do
+    INFO=$(curl -s "$SERVER_URL/Items/$id/PlaybackInfo")
+    CONTAINER=$(echo "$INFO" | grep -o '"Container":"[^"]*"' | head -1 | cut -d'"' -f4)
+    # Extraer el primer y segundo codec (normalmente Video y Audio)
+    VCODEC=$(echo "$INFO" | grep -o '"Codec":"[^"]*"' | head -1 | cut -d'"' -f4)
+    ACODEC=$(echo "$INFO" | grep -o '"Codec":"[^"]*"' | sed -n '2p' | cut -d'"' -f4)
+    NAME=$(echo "$INFO" | grep -o '"Name":"[^"]*"' | head -1 | cut -d'"' -f4)
+    
+    if [ -z "$VCODEC" ]; then
+        echo "   - ID: $id | (Sin metadatos técnicos extraídos aún)"
+    else
+        echo "   - $NAME | Contenedor: $CONTAINER | Video: $VCODEC | Audio: $ACODEC"
+    fi
+done
+
 echo "Fase 2: Carga masiva de Metadatos ($CONCURRENCY peticiones en paralelo)..."
 echo "$ALL_IDS" | xargs -I{} -P "$CONCURRENCY" curl -s -o /dev/null -w "%{http_code}\n" "$SERVER_URL/Items/{}" | grep -c "200" | xargs -I{} echo "-> {} peticiones exitosas (HTTP 200)."
 echo "Estado tras Fase 2:"
@@ -43,9 +61,9 @@ get_mem
 get_goroutines
 echo "-----------------------------------"
 
-echo "Fase 3: Simulación de Streaming Masivo (Static Play por 10 segundos)..."
+echo "Fase 3: Simulación de Streaming Masivo (Static Play por $TIMEOUT_SEC segundos)..."
 echo "Lanzando descargas paralelas con límite de tiempo..."
-echo "$ALL_IDS" | xargs -I{} -P "$CONCURRENCY" timeout 10 curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?Static=true"
+echo "$ALL_IDS" | xargs -I{} -P "$CONCURRENCY" timeout "$TIMEOUT_SEC" curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?Static=true"
 echo "Estado tras Fase 3 (Streaming detenido):"
 get_mem
 get_goroutines
@@ -55,7 +73,7 @@ echo "Fase 4: Test de Transcodificación Escalonada (FFmpeg) en paralelo..."
 
 echo "-> Fase 4.1: Baja Calidad (Móvil / 3G) - 1Mbps, Video: h264, Audio: aac..."
 # Simulamos clientes solicitando transcodificación agresiva a muy bajo bitrate
-echo "$ALL_IDS" | head -n 3 | xargs -I{} -P 3 timeout 10 curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?maxBitrate=1000000&VideoCodec=h264&AudioCodec=aac"
+echo "$TEST_IDS" | xargs -I{} -P 3 timeout "$TIMEOUT_SEC" curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?maxBitrate=1000000&VideoCodec=h264&AudioCodec=aac"
 echo "Estado tras Fase 4.1:"
 get_mem
 get_goroutines
@@ -63,7 +81,7 @@ echo "-----------------------------------"
 
 echo "-> Fase 4.2: Calidad Media (Web / WiFi) - 5Mbps, Video: h264, Audio: aac..."
 # Simulamos clientes estándar solicitando calidad intermedia
-echo "$ALL_IDS" | head -n 3 | xargs -I{} -P 3 timeout 10 curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?maxBitrate=5000000&VideoCodec=h264&AudioCodec=aac"
+echo "$TEST_IDS" | xargs -I{} -P 3 timeout "$TIMEOUT_SEC" curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?maxBitrate=5000000&VideoCodec=h264&AudioCodec=aac"
 echo "Estado tras Fase 4.2:"
 get_mem
 get_goroutines
@@ -71,7 +89,7 @@ echo "-----------------------------------"
 
 echo "-> Fase 4.3: Máxima Calidad / Remux (TV / Red Local) - Video original, Audio transcodificado..."
 # Simulamos un Smart TV que soporta el video original pero necesita que el audio pase a AAC
-echo "$ALL_IDS" | head -n 3 | xargs -I{} -P 3 timeout 10 curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?VideoCodec=copy&AudioCodec=aac"
+echo "$TEST_IDS" | xargs -I{} -P 3 timeout "$TIMEOUT_SEC" curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?VideoCodec=copy&AudioCodec=aac"
 echo "Estado tras Fase 4.3:"
 get_mem
 get_goroutines
