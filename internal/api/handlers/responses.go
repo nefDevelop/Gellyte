@@ -85,54 +85,62 @@ type UserConfiguration struct {
 	SkipSongsNotPlayed         bool     `json:"SkipSongsNotPlayed"`
 }
 
+type AccessSchedule struct {
+	Id        int     `json:"Id"`
+	UserId    string  `json:"UserId"`
+	DayOfWeek string  `json:"DayOfWeek"`
+	StartHour float64 `json:"StartHour"`
+	EndHour   float64 `json:"EndHour"`
+}
+
 type UserPolicy struct {
-	IsAdministrator                  bool     `json:"IsAdministrator"`
-	IsHidden                         bool     `json:"IsHidden"`
-	EnableCollectionManagement       bool     `json:"EnableCollectionManagement"`
-	EnableSubtitleManagement         bool     `json:"EnableSubtitleManagement"`
-	EnableLyricManagement            bool     `json:"EnableLyricManagement"`
-	IsDisabled                       bool     `json:"IsDisabled"`
-	MaxParentalRating                int      `json:"MaxParentalRating"`
-	MaxParentalSubRating             int      `json:"MaxParentalSubRating"`
-	BlockedTags                      []string `json:"BlockedTags"`
-	AllowedTags                      []string `json:"AllowedTags"`
-	EnableUserPreferenceAccess       bool     `json:"EnableUserPreferenceAccess"`
-	AccessSchedules                  []interface{} `json:"AccessSchedules"`
-	BlockUnratedItems                []interface{} `json:"BlockUnratedItems"`
-	EnableRemoteControlOfOtherUsers  bool     `json:"EnableRemoteControlOfOtherUsers"`
-	EnableSharedDeviceControl        bool     `json:"EnableSharedDeviceControl"`
-	EnableRemoteAccess               bool     `json:"EnableRemoteAccess"`
-	EnableLiveTvManagement           bool     `json:"EnableLiveTvManagement"`
-	EnableLiveTvAccess               bool     `json:"EnableLiveTvAccess"`
-	EnableMediaPlayback              bool     `json:"EnableMediaPlayback"`
-	EnableAudioPlaybackTranscoding   bool     `json:"EnableAudioPlaybackTranscoding"`
-	EnableVideoPlaybackTranscoding   bool     `json:"EnableVideoPlaybackTranscoding"`
-	EnablePlaybackRemuxing           bool     `json:"EnablePlaybackRemuxing"`
-	ForceRemoteSourceTranscoding     bool     `json:"ForceRemoteSourceTranscoding"`
-	EnableContentDeletion            bool     `json:"EnableContentDeletion"`
-	EnableContentDeletionFromFolders []string `json:"EnableContentDeletionFromFolders"`
-	EnableContentDownloading         bool     `json:"EnableContentDownloading"`
-	EnableSyncTranscoding            bool     `json:"EnableSyncTranscoding"`
-	EnableMediaConversion            bool     `json:"EnableMediaConversion"`
-	EnabledDevices                   []string `json:"EnabledDevices"`
-	EnableAllDevices                 bool     `json:"EnableAllDevices"`
-	EnabledChannels                  []string `json:"EnabledChannels"`
-	EnableAllChannels                bool     `json:"EnableAllChannels"`
-	EnabledFolders                   []string `json:"EnabledFolders"`
-	EnableAllFolders                 bool     `json:"EnableAllFolders"`
-	InvalidLoginAttemptCount         int      `json:"InvalidLoginAttemptCount"`
-	LoginAttemptsBeforeLockout       int      `json:"LoginAttemptsBeforeLockout"`
-	MaxActiveSessions                int      `json:"MaxActiveSessions"`
-	EnablePublicSharing              bool     `json:"EnablePublicSharing"`
-	EnableSubtitleDownloading        bool     `json:"EnableSubtitleDownloading"`
-	EnablePlaybackStreaming          bool     `json:"EnablePlaybackStreaming"`
-	EnableSharedDevice               bool     `json:"EnableSharedDevice"`
-	BlockedMediaFolders              []string `json:"BlockedMediaFolders"`
-	BlockedChannels                  []string `json:"BlockedChannels"`
-	RemoteClientBitrateLimit         int      `json:"RemoteClientBitrateLimit"`
-	AuthenticationProviderId         string   `json:"AuthenticationProviderId"`
-	PasswordResetProviderId          string   `json:"PasswordResetProviderId"`
-	SyncPlayAccess                   string   `json:"SyncPlayAccess"`
+	IsAdministrator                  bool             `json:"IsAdministrator"`
+	IsHidden                         bool             `json:"IsHidden"`
+	EnableCollectionManagement       bool             `json:"EnableCollectionManagement"`
+	EnableSubtitleManagement         bool             `json:"EnableSubtitleManagement"`
+	EnableLyricManagement            bool             `json:"EnableLyricManagement"`
+	IsDisabled                       bool             `json:"IsDisabled"`
+	MaxParentalRating                int              `json:"MaxParentalRating"`
+	MaxParentalSubRating             int              `json:"MaxParentalSubRating"`
+	BlockedTags                      []string         `json:"BlockedTags"`
+	AllowedTags                      []string         `json:"AllowedTags"`
+	EnableUserPreferenceAccess       bool             `json:"EnableUserPreferenceAccess"`
+	AccessSchedules                  []AccessSchedule `json:"AccessSchedules"`
+	BlockUnratedItems                []string         `json:"BlockUnratedItems"`
+	EnableRemoteControlOfOtherUsers  bool             `json:"EnableRemoteControlOfOtherUsers"`
+	EnableSharedDeviceControl        bool             `json:"EnableSharedDeviceControl"`
+	EnableRemoteAccess               bool             `json:"EnableRemoteAccess"`
+	EnableLiveTvManagement           bool             `json:"EnableLiveTvManagement"`
+	EnableLiveTvAccess               bool             `json:"EnableLiveTvAccess"`
+	EnableMediaPlayback              bool             `json:"EnableMediaPlayback"`
+	EnableAudioPlaybackTranscoding   bool             `json:"EnableAudioPlaybackTranscoding"`
+	EnableVideoPlaybackTranscoding   bool             `json:"EnableVideoPlaybackTranscoding"`
+	EnablePlaybackRemuxing           bool             `json:"EnablePlaybackRemuxing"`
+	ForceRemoteSourceTranscoding     bool             `json:"ForceRemoteSourceTranscoding"`
+	EnableContentDeletion            bool             `json:"EnableContentDeletion"`
+	EnableContentDeletionFromFolders []string         `json:"EnableContentDeletionFromFolders"`
+	EnableContentDownloading         bool             `json:"EnableContentDownloading"`
+	EnableSyncTranscoding            bool             `json:"EnableSyncTranscoding"`
+	EnableMediaConversion            bool             `json:"EnableMediaConversion"`
+	EnabledDevices                   []string         `json:"EnabledDevices"`
+	EnableAllDevices                 bool             `json:"EnableAllDevices"`
+	EnabledChannels                  []string         `json:"EnabledChannels"`
+	EnableAllChannels                bool             `json:"EnableAllChannels"`
+	EnabledFolders                   []string         `json:"EnabledFolders"`
+	EnableAllFolders                 bool             `json:"EnableAllFolders"`
+	InvalidLoginAttemptCount         int              `json:"InvalidLoginAttemptCount"`
+	LoginAttemptsBeforeLockout       int              `json:"LoginAttemptsBeforeLockout"`
+	MaxActiveSessions                int              `json:"MaxActiveSessions"`
+	EnablePublicSharing              bool             `json:"EnablePublicSharing"`
+	EnableSubtitleDownloading        bool             `json:"EnableSubtitleDownloading"`
+	EnablePlaybackStreaming          bool             `json:"EnablePlaybackStreaming"`
+	EnableSharedDevice               bool             `json:"EnableSharedDevice"`
+	BlockedMediaFolders              []string         `json:"BlockedMediaFolders"`
+	BlockedChannels                  []string         `json:"BlockedChannels"`
+	RemoteClientBitrateLimit         int              `json:"RemoteClientBitrateLimit"`
+	AuthenticationProviderId         string           `json:"AuthenticationProviderId"`
+	PasswordResetProviderId          string           `json:"PasswordResetProviderId"`
+	SyncPlayAccess                   string           `json:"SyncPlayAccess"`
 }
 
 type AuthenticationResult struct {
@@ -200,17 +208,34 @@ type PlayerStateInfo struct {
 	SubtitleStreamIndex int    `json:"SubtitleStreamIndex"`
 	PlayMethod          string `json:"PlayMethod"`
 	RepeatMode          string `json:"RepeatMode"`
+	MediaSourceId       string `json:"MediaSourceId"`
+	PlaybackOrder       string `json:"PlaybackOrder"`
+	LiveStreamId        string `json:"LiveStreamId"`
 }
 
 type ClientCapabilities struct {
-	PlayableMediaTypes           []string    `json:"PlayableMediaTypes"`
-	SupportedCommands            []string    `json:"SupportedCommands"`
-	SupportsMediaControl         bool        `json:"SupportsMediaControl"`
-	SupportsPersistentIdentifier bool        `json:"SupportsPersistentIdentifier"`
-	SupportsSync                 bool        `json:"SupportsSync"`
-	DeviceProfile                interface{} `json:"DeviceProfile"`
-	AppStoreUrl                  string      `json:"AppStoreUrl"`
-	IconUrl                      string      `json:"IconUrl"`
+	PlayableMediaTypes           []string      `json:"PlayableMediaTypes"`
+	SupportedCommands            []string      `json:"SupportedCommands"`
+	SupportsMediaControl         bool          `json:"SupportsMediaControl"`
+	SupportsPersistentIdentifier bool          `json:"SupportsPersistentIdentifier"`
+	SupportsSync                 bool          `json:"SupportsSync"`
+	DeviceProfile                DeviceProfile `json:"DeviceProfile"`
+	AppStoreUrl                  string        `json:"AppStoreUrl"`
+	IconUrl                      string        `json:"IconUrl"`
+}
+
+type DeviceProfile struct {
+	Name                             string               `json:"Name"`
+	Id                               string               `json:"Id"`
+	MaxStreamingBitrate              int                  `json:"MaxStreamingBitrate"`
+	MaxStaticBitrate                 int                  `json:"MaxStaticBitrate"`
+	MusicStreamingTranscodingBitrate int                  `json:"MusicStreamingTranscodingBitrate"`
+	MaxStaticMusicBitrate            int                  `json:"MaxStaticMusicBitrate"`
+	DirectPlayProfiles               []interface{}        `json:"DirectPlayProfiles"`
+	TranscodingProfiles              []interface{}        `json:"TranscodingProfiles"`
+	ContainerProfiles                []interface{}        `json:"ContainerProfiles"`
+	CodecProfiles                    []interface{}        `json:"CodecProfiles"`
+	SubtitleProfiles                 []interface{}        `json:"SubtitleProfiles"`
 }
 
 type BaseItemDto struct {

@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -86,7 +88,48 @@ func parseEmbyHeader(header string) EmbyAuth {
 }
 func ResponseLoggerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		raw := c.Request.URL.RawQuery
+
 		c.Next()
+
+		latency := time.Since(start)
+		status := c.Writer.Status()
+		method := c.Request.Method
+
+		client := "Unknown"
+		device := "Unknown"
+		if auth, ok := c.Get("auth"); ok {
+			if a, ok := auth.(EmbyAuth); ok {
+				client = a.Client
+				device = a.Device
+			}
+		}
+
+		if raw != "" {
+			path = path + "?" + raw
+		}
+
+		// Color según el status para verlo rápido en consola
+		statusColor := "\033[32m" // Verde
+		if status >= 400 {
+			statusColor = "\033[31m" // Rojo
+		} else if status >= 300 {
+			statusColor = "\033[33m" // Amarillo
+		}
+		reset := "\033[0m"
+
+		fmt.Printf("[API] %s %v %s %3d %s | %13v | %15s | %s (%s)\n",
+			method,
+			reset,
+			statusColor, status, reset,
+			latency,
+			c.ClientIP(),
+			client,
+			device,
+		)
+		fmt.Printf("      Path: %s\n", path)
 	}
 }
 
