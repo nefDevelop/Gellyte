@@ -44,8 +44,9 @@ if [ "$COUNT" -eq 0 ]; then
 fi
 echo "Encontrados $COUNT ítems para el test."
 
-echo "-> Clasificando hasta 20 ítems para las tandas de prueba..."
-SAMPLE_IDS=$(echo "$ALL_IDS" | head -n 20)
+echo "-> Clasificando hasta 30 ítems aleatorios para buscar diversidad de resoluciones..."
+# Mezclamos (shuf/sort -R) todos los IDs de la biblioteca para garantizar diversidad
+SAMPLE_IDS=$(echo "$ALL_IDS" | sort -R | head -n 30)
 LOW_RES_IDS=""
 MED_RES_IDS=""
 HIGH_RES_IDS=""
@@ -88,8 +89,9 @@ get_goroutines
 echo "-----------------------------------"
 
 echo "Fase 3: Simulación de Streaming Masivo (Static Play por $TIMEOUT_SEC segundos)..."
-echo "Lanzando descargas paralelas con límite de tiempo..."
-echo "$ALL_IDS" | xargs -I{} -P "$CONCURRENCY" timeout "$TIMEOUT_SEC" curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?Static=true"
+echo "Lanzando descargas estáticas paralelas (Límite: 50 ítems aleatorios)..."
+STATIC_IDS=$(echo "$ALL_IDS" | sort -R | head -n 50)
+echo "$STATIC_IDS" | xargs -I{} -P "$CONCURRENCY" timeout "$TIMEOUT_SEC" curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?Static=true"
 echo "Estado tras Fase 3 (Streaming detenido):"
 get_mem
 get_goroutines
