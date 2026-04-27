@@ -11,7 +11,7 @@ get_mem() {
 
 get_goroutines() {
     echo -n "Goroutines: "
-    curl -s "$SERVER_URL/debug/pprof/" | grep "goroutine" | head -n 1 | awk '{print $1}'
+    curl -s "$SERVER_URL/debug/pprof/goroutine?debug=1" | grep "goroutine profile: total" | awk '{print $4}'
 }
 
 echo "=== Gellyte EXTREME Stress Test Started ==="
@@ -22,10 +22,11 @@ echo "-----------------------------------"
 
 echo "Fase 1: Extrayendo IDs de medios (Filtro: ${1:-Ninguno})..."
 # Si se pasa un argumento, filtramos por ese texto
+# Añadimos IncludeItemTypes=Movie,Episode para garantizar que no elegimos carpetas (Folders/Seasons)
 if [ -n "$1" ]; then
-    ALL_IDS=$(curl -s "$SERVER_URL/Items" | grep -i "$1" -B 1 | grep -o '"Id":"[^"]*"' | cut -d'"' -f4)
+    ALL_IDS=$(curl -s "$SERVER_URL/Items?IncludeItemTypes=Movie,Episode" | grep -i "$1" -B 1 | grep -o '"Id":"[^"]*"' | cut -d'"' -f4)
 else
-    ALL_IDS=$(curl -s "$SERVER_URL/Items" | grep -o '"Id":"[^"]*"' | cut -d'"' -f4)
+    ALL_IDS=$(curl -s "$SERVER_URL/Items?IncludeItemTypes=Movie,Episode" | grep -o '"Id":"[^"]*"' | cut -d'"' -f4)
 fi
 COUNT=$(echo "$ALL_IDS" | grep -v '^$' | wc -l)
 
