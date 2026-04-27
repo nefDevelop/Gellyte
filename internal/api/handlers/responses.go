@@ -276,12 +276,17 @@ type BaseItemDto struct {
 }
 
 type UserItemDataDto struct {
+	Rating                float64 `json:"Rating"`
+	PlayedPercentage      float64 `json:"PlayedPercentage"`
+	UnplayedItemCount     int     `json:"UnplayedItemCount,omitempty"`
 	PlaybackPositionTicks int64   `json:"PlaybackPositionTicks"`
 	PlayCount             int     `json:"PlayCount"`
 	IsFavorite            bool    `json:"IsFavorite"`
+	Likes                 *bool   `json:"Likes,omitempty"`
+	LastPlayedDate        string  `json:"LastPlayedDate,omitempty"`
 	Played                bool    `json:"Played"`
-	LastPlayedDate        string  `json:"LastPlayedDate"`
-	Rating                float64 `json:"Rating"`
+	Key                   string  `json:"Key,omitempty"`
+	ItemId                string  `json:"ItemId,omitempty"`
 }
 
 type QuickConnectResult struct {

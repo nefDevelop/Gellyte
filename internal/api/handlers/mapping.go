@@ -10,17 +10,25 @@ import (
 // Es una función pura que no depende de servicios, facilitando el desacoplamiento.
 func MapMediaItemToDto(item models.MediaItem, userData *models.UserItemData, serverID string) BaseItemDto {
 	userDataDto := UserItemDataDto{
-		IsFavorite: false,
-		Played:     false,
+		IsFavorite:       false,
+		Played:           false,
+		PlayedPercentage: 0.0,
+		Rating:           0.0,
 	}
 
 	if userData != nil {
+		playedPercentage := 0.0
+		if item.RunTimeTicks > 0 {
+			playedPercentage = float64(userData.PlaybackPositionTicks) / float64(item.RunTimeTicks) * 100
+		}
 		userDataDto = UserItemDataDto{
 			PlaybackPositionTicks: userData.PlaybackPositionTicks,
 			PlayCount:             userData.PlayCount,
 			IsFavorite:            userData.IsFavorite,
 			Played:                userData.Played,
 			LastPlayedDate:        userData.LastPlayedDate.Format("2006-01-02T15:04:05.0000000Z"),
+			PlayedPercentage:      playedPercentage,
+			ItemId:                item.ID,
 		}
 	}
 
