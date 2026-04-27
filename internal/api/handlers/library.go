@@ -191,6 +191,7 @@ func (h *LibraryHandler) GetItemImage(c *gin.Context) {
 		}
 		placeholder := fmt.Sprintf(`<svg width="200" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="300" fill="%s"/><text x="50%" y="50%" font-family="Arial" font-size="40" font-weight="bold" fill="white" text-anchor="middle" dy=".3em">%s</text></svg>`, color, text)
 		c.Header("Content-Type", "image/svg+xml")
+		c.Header("Cache-Control", "public, max-age=31536000")
 		c.String(http.StatusOK, placeholder)
 		return
 	}
@@ -206,25 +207,47 @@ func (h *LibraryHandler) GetItemImage(c *gin.Context) {
 	nameWithoutExt := filename[:len(filename)-len(filepath.Ext(filename))]
 
 	// Lista de nombres comunes para carátulas (Primary)
+	// Jellyfin busca estos archivos en el mismo directorio que el video
 	possibleNames := []string{
-		"poster.jpg", "poster.png",
-		"folder.jpg", "folder.png",
-		"cover.jpg", "cover.png",
-		"thumb.jpg", "thumb.png",
+		"poster.jpg", "poster.png", "poster.jpeg",
+		"folder.jpg", "folder.png", "folder.jpeg",
+		"cover.jpg", "cover.png", "cover.jpeg",
+		"default.jpg", "default.png",
+		nameWithoutExt + "-poster.jpg",
+		nameWithoutExt + "-poster.png",
 		nameWithoutExt + ".jpg",
 		nameWithoutExt + ".png",
+		nameWithoutExt + ".jpeg",
 	}
 
 	for _, name := range possibleNames {
 		p := filepath.Join(dir, name)
 		if _, err := os.Stat(p); err == nil {
+			c.Header("Cache-Control", "public, max-age=31536000")
 			c.File(p)
 			return
 		}
 	}
 
-	// Si no hay imagen, devolvemos un placeholder SVG para que la app no se vea rota
-	placeholder := `<svg width="200" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="300" fill="#333"/><text x="50%" y="50%" font-family="Arial" font-size="20" fill="#555" text-anchor="middle" dy=".3em">Sin Imagen</text></svg>`
+	// Si es una serie, también buscamos en la carpeta superior por si acaso
+	if item.Type == "Series" || item.Type == "Episode" {
+		parentDir := filepath.Dir(dir)
+		for _, name := range possibleNames {
+			p := filepath.Join(parentDir, name)
+			if _, err := os.Stat(p); err == nil {
+				c.Header("Cache-Control", "public, max-age=31536000")
+				c.File(p)
+				return
+			}
+		}
+	}
+
+	// Si no hay imagen, devolvemos un placeholder SVG con la inicial del nombre
+	initial := "M"
+	if len(item.Name) > 0 {
+		initial = string(item.Name[0])
+	}
+	placeholder := fmt.Sprintf(`<svg width="200" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="300" fill="#222"/><text x="50%" y="50%" font-family="Arial" font-size="60" fill="#444" text-anchor="middle" dy=".3em">%s</text></svg>`, initial)
 	c.Header("Content-Type", "image/svg+xml")
 	c.String(http.StatusOK, placeholder)
 }
@@ -254,7 +277,10 @@ func (h *LibraryHandler) GetNextUp(c *gin.Context) {
 }
 
 func (h *LibraryHandler) GetResumeItems(c *gin.Context) {
-	userId := c.GetString("UserID")
+	userId := c.Param("id")
+	if userId == "" {
+		userId = c.GetString("UserID")
+	}
 	if userId == "" {
 		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
@@ -262,7 +288,7 @@ func (h *LibraryHandler) GetResumeItems(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("Limit", "24"))
 	items, err := h.LibraryService.GetResumeItems(userId, limit)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0})
+		c.JSON(http.StatusOK, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0, "StartIndex": 0})
 		return
 	}
 
@@ -274,6 +300,7 @@ func (h *LibraryHandler) GetResumeItems(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Items":            respItems,
 		"TotalRecordCount": len(respItems),
+		"StartIndex":       0,
 	})
 }
 
@@ -303,7 +330,10 @@ func (h *LibraryHandler) GetSuggestions(c *gin.Context) {
 
 // GetLatestItems godoc
 func (h *LibraryHandler) GetLatestItems(c *gin.Context) {
-	userId := c.GetString("UserID")
+	userId := c.Param("id")
+	if userId == "" {
+		userId = c.GetString("UserID")
+	}
 	if userId == "" {
 		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
