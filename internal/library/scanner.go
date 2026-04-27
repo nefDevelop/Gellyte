@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"sync"
@@ -104,8 +105,13 @@ type scanTask struct {
 }
 
 func init() {
-	// Iniciar 4 workers fijos. Esto ahorra miles de goroutines en memoria durante el escaneo inicial.
-	for i := 0; i < 4; i++ {
+	// Determinar el número de workers dinámicamente según la CPU para acelerar ffprobe
+	workers := runtime.NumCPU() * 2
+	if workers > 16 {
+		workers = 16 // Límite máximo para no saturar la RAM con demasiados procesos de ffprobe
+	}
+
+	for i := 0; i < workers; i++ {
 		go func() {
 			for task := range taskQueue {
 				if task.isDir {

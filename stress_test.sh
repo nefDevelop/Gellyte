@@ -27,14 +27,19 @@ echo "Fase 1: Extrayendo IDs de medios (Filtro: ${1:-Ninguno})..."
 # Si se pasa un argumento, filtramos por ese texto
 # Añadimos IncludeItemTypes=Movie,Episode para garantizar que no elegimos carpetas (Folders/Seasons)
 if [ -n "$1" ]; then
-    ALL_IDS=$(curl -s "$SERVER_URL/Items?IncludeItemTypes=Movie,Episode" | grep -i "$1" -B 1 | grep -o '"Id":"[^"]*"' | cut -d'"' -f4)
+    RAW_RESP=$(curl -s "$SERVER_URL/Items?IncludeItemTypes=Movie,Episode&limit=100000")
+    ALL_IDS=$(echo "$RAW_RESP" | grep -i "$1" -B 1 | grep -o '"Id":"[^"]*"' | cut -d'"' -f4)
 else
-    ALL_IDS=$(curl -s "$SERVER_URL/Items?IncludeItemTypes=Movie,Episode" | grep -o '"Id":"[^"]*"' | cut -d'"' -f4)
+    RAW_RESP=$(curl -s "$SERVER_URL/Items?IncludeItemTypes=Movie,Episode&limit=100000")
+    ALL_IDS=$(echo "$RAW_RESP" | grep -o '"Id":"[^"]*"' | cut -d'"' -f4)
 fi
 COUNT=$(echo "$ALL_IDS" | grep -v '^$' | wc -l)
 
 if [ "$COUNT" -eq 0 ]; then
     echo "ERROR: No se han encontrado ítems en el servidor. ¿Está el escáner todavía trabajando?"
+    echo "-> Respuesta cruda de la API (Primeros 300 caracteres):"
+    echo "$RAW_RESP" | head -c 300
+    echo -e "\n..."
     exit 1
 fi
 echo "Encontrados $COUNT ítems para el test."
