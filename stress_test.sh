@@ -8,6 +8,8 @@ TIMEOUT_SEC=${TIMEOUT_SEC:-15}
 get_mem() {
     echo -n "RAM App (HeapAlloc): "
     curl -s "$SERVER_URL/debug/pprof/heap?debug=1" | grep "# HeapAlloc =" | awk '{print $4/1024/1024 " MB"}'
+    echo -n "RAM Real (Gellyte+FFmpeg): "
+    ps aux | grep -E '[g]ellyte|[f]fmpeg' | grep -v "docker" | awk '{sum+=$6} END {if(sum>0) printf "%.2f MB\n", sum/1024; else print "0.00 MB"}'
     echo -n "RAM OS  (Usada/Total): "
     free -h | awk '/^Mem:/ {print $3 " / " $2}'
 }
