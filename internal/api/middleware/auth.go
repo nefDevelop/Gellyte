@@ -49,6 +49,11 @@ func CORSMiddleware() gin.HandlerFunc {
 		c.Writer.Header().Set("X-Emby-Version", "10.11.8")
 		c.Writer.Header().Set("X-Powered-By", "ASP.NET")
 
+		// Forzar PascalCase en todas las respuestas JSON para compatibilidad con Jellyfin
+		if strings.Contains(c.GetHeader("Accept"), "application/json") || c.Request.Method == "POST" {
+			c.Header("Content-Type", "application/json; profile=\"PascalCase\"; charset=utf-8")
+		}
+
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return

@@ -305,10 +305,15 @@ func (h *AuthHandler) GetUserViews(c *gin.Context) {
 }
 
 func (h *AuthHandler) GetDisplayPreferences(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		id = "usersettings"
+	}
 	c.JSON(http.StatusOK, gin.H{
-		"Id":               "default",
+		"Id":               id,
 		"ViewType":         "Default",
 		"SortBy":           "SortName",
+		"IndexBy":          "Name",
 		"SortOrder":        "Ascending",
 		"RememberIndexing": false,
 		"RememberSorting":  false,
