@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -25,15 +24,15 @@ func (h *AuthHandler) GetPublicUsers(c *gin.Context) {
 	}
 
 	now := time.Now().UTC().Format("2006-01-02T15:04:05.0000000Z")
-	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
-	
+	sId := config.AppConfig.Jellyfin.ServerUUID
+
 	resp := []UserDto{}
 	for _, u := range users {
 		userObj := UserDto{
 			Name:                      u.Username,
 			ServerId:                  sId,
 			ServerName:                config.AppConfig.Server.Name,
-			Id:                        strings.ReplaceAll(u.ID, "-", ""),
+			Id:                        u.ID,
 			HasPassword:               true,
 			HasConfiguredPassword:     true,
 			HasConfiguredEasyPassword: true,
@@ -87,8 +86,8 @@ func (h *AuthHandler) AuthenticateByName(c *gin.Context) {
 	// Formato de fecha con 7 decimales (precisión de Jellyfin)
 	now := time.Now().UTC().Format("2006-01-02T15:04:05.0000000Z")
 
-	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
-	uId := strings.ReplaceAll(user.ID, "-", "")
+	sId := config.AppConfig.Jellyfin.ServerUUID
+	uId := user.ID
 
 	// Detectar si es una TV
 	deviceType := "Mobile"
@@ -98,10 +97,8 @@ func (h *AuthHandler) AuthenticateByName(c *gin.Context) {
 		deviceType = "Tv"
 	}
 
-	// Generar un JWT dummy más realista (Base64)
-	jwtHeader := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-	jwtPayload := "eyJ1c2VySWQiOiI" + uId + "Iiwic2VydmVySWQiOiI" + sId + "In0"
-	fullToken := jwtHeader + "." + jwtPayload + ".dummy_signature"
+	// Un token más largo y opaco
+	fullToken := token + "z" + sId
 
 	c.Header("X-Emby-Token", fullToken)
 	c.Header("X-Emby-Authorization", "Token=\""+fullToken+"\"")
@@ -157,7 +154,7 @@ func (h *AuthHandler) AuthenticateByName(c *gin.Context) {
 			},
 			RemoteEndPoint:      c.ClientIP(),
 			PlayableMediaTypes:  []string{"Audio", "Video"},
-			Id:                  token, // Usamos el token interno como ID de sesión
+			Id:                  fullToken,
 			UserId:              uId,
 			UserName:            user.Username,
 			Client:              authInfo.Client,
@@ -180,12 +177,7 @@ func (h *AuthHandler) AuthenticateByName(c *gin.Context) {
 		ServerId:    sId,
 	}
 
-	jsonBytes, err := json.Marshal(authResult)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error encoding JSON"})
-		return
-	}
-	c.Data(http.StatusOK, "application/json; profile=\"PascalCase\"", jsonBytes)
+	c.JSON(http.StatusOK, authResult)
 }
 
 func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
@@ -208,8 +200,8 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
-	uId := strings.ReplaceAll(adminUser.ID, "-", "")
+	sId := config.AppConfig.Jellyfin.ServerUUID
+	uId := adminUser.ID
 
 	c.JSON(http.StatusOK, UserDto{
 		Name:                      adminUser.Username,
@@ -238,8 +230,8 @@ func (h *AuthHandler) GetUserById(c *gin.Context) {
 	}
 
 	now := time.Now().UTC().Format("2006-01-02T15:04:05.0000000Z")
-	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
-	uId := strings.ReplaceAll(user.ID, "-", "")
+	sId := config.AppConfig.Jellyfin.ServerUUID
+	uId := user.ID
 
 	c.JSON(http.StatusOK, UserDto{
 		Name:                      user.Username,
@@ -260,10 +252,10 @@ func (h *AuthHandler) GetUserById(c *gin.Context) {
 }
 
 func (h *AuthHandler) GetUserViews(c *gin.Context) {
-	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
-	moviesId := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
-	seriesId := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
-	
+	sId := config.AppConfig.Jellyfin.ServerUUID
+	moviesId := config.AppConfig.Jellyfin.MoviesLibraryID
+	seriesId := config.AppConfig.Jellyfin.SeriesLibraryID
+
 	views := []BaseItemDto{
 		{
 			Name:                    "Películas",
@@ -312,8 +304,8 @@ func (h *AuthHandler) GetDisplayPreferences(c *gin.Context) {
 // --- HELPER FUNCTIONS ---
 
 func getDefaultPolicyDto(isAdmin bool) UserPolicy {
-	moviesId := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
-	seriesId := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
+	moviesId := config.AppConfig.Jellyfin.MoviesLibraryID
+	seriesId := config.AppConfig.Jellyfin.SeriesLibraryID
 
 	return UserPolicy{
 		IsAdministrator:                  isAdmin,
@@ -403,3 +395,4 @@ func (h *AuthHandler) GetUserPrimaryImage(c *gin.Context) {
 func (h *AuthHandler) GetUserImage(c *gin.Context) {
 	h.GetUserPrimaryImage(c)
 }
+

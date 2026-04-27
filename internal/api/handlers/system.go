@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gin-gonic/gin"
@@ -19,7 +18,7 @@ const (
 // GetPublicInfo godoc
 func (h *SystemHandler) GetPublicInfo(c *gin.Context) {
 	c.Header("Content-Type", "application/json; profile=\"PascalCase\"; charset=utf-8")
-	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
+	sId := config.AppConfig.Jellyfin.ServerUUID
 	c.JSON(http.StatusOK, PublicSystemInfo{
 		LocalAddress:           fmt.Sprintf("http://%s", c.Request.Host),
 		ServerName:             config.AppConfig.Server.Name,
@@ -34,7 +33,7 @@ func (h *SystemHandler) GetPublicInfo(c *gin.Context) {
 // GetSystemInfo godoc
 func (h *SystemHandler) GetSystemInfo(c *gin.Context) {
 	c.Header("Content-Type", "application/json; profile=\"PascalCase\"; charset=utf-8")
-	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
+	sId := config.AppConfig.Jellyfin.ServerUUID
 	c.JSON(http.StatusOK, SystemInfo{
 		LocalAddress:               fmt.Sprintf("http://%s", c.Request.Host),
 		ServerName:                 config.AppConfig.Server.Name,

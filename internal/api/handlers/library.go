@@ -22,8 +22,8 @@ func (h *LibraryHandler) GetVirtualFolders(c *gin.Context) {
 		TypeOptions:           []TypeOptions{},
 	}
 
-	moviesId := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
-	seriesId := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
+	moviesId := config.AppConfig.Jellyfin.MoviesLibraryID
+	seriesId := config.AppConfig.Jellyfin.SeriesLibraryID
 
 	folders := []VirtualFolderDto{
 		{
@@ -64,7 +64,7 @@ func (h *LibraryHandler) GetItems(c *gin.Context) {
 	if parentId == "" {
 		parentId = c.Query("parentId")
 	}
-	parentId = strings.ReplaceAll(parentId, "-", "") // Normalizar UUIDs de Jellyfin
+	// No normalizar aquí para mantener los guiones si vienen en la query
 	itemTypesStr := c.Query("IncludeItemTypes")
 	if itemTypesStr == "" {
 		itemTypesStr = c.Query("includeItemTypes")
@@ -88,15 +88,15 @@ func (h *LibraryHandler) GetItems(c *gin.Context) {
 	}
 
 	// Lógica de carpetas virtuales trasladada del handler al servicio/params
-	moviesLibNorm := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
-	seriesLibNorm := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
+	moviesLib := config.AppConfig.Jellyfin.MoviesLibraryID
+	seriesLib := config.AppConfig.Jellyfin.SeriesLibraryID
 
 	actualParentID := parentId
 	switch parentId {
-	case moviesLibNorm:
+	case moviesLib:
 		itemTypes = []string{"Movie"}
 		actualParentID = ""
-	case seriesLibNorm:
+	case seriesLib:
 		itemTypes = []string{"Series"}
 		actualParentID = ""
 	}
@@ -136,23 +136,22 @@ func (h *LibraryHandler) GetItemDetails(c *gin.Context) {
 	id := c.Param("id")
 
 	// Verificar si es una carpeta virtual (biblioteca raíz)
-	moviesLibNorm := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
-	seriesLibNorm := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
-	idNorm := strings.ReplaceAll(id, "-", "")
+	moviesLib := config.AppConfig.Jellyfin.MoviesLibraryID
+	seriesLib := config.AppConfig.Jellyfin.SeriesLibraryID
 
-	switch idNorm {
-	case moviesLibNorm:
+	switch id {
+	case moviesLib:
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Películas",
-			"Id":             moviesLibNorm,
+			"Id":             moviesLib,
 			"Type":           "CollectionFolder",
 			"CollectionType": "movies",
 		})
 		return
-	case seriesLibNorm:
+	case seriesLib:
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Series",
-			"Id":             seriesLibNorm,
+			"Id":             seriesLib,
 			"Type":           "CollectionFolder",
 			"CollectionType": "tvshows",
 		})
