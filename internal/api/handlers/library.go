@@ -22,14 +22,17 @@ func (h *LibraryHandler) GetVirtualFolders(c *gin.Context) {
 		TypeOptions:           []TypeOptions{},
 	}
 
+	moviesId := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
+	seriesId := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
+
 	folders := []VirtualFolderDto{
 		{
 			"Películas",
 			[]string{config.AppConfig.Library.MoviesPath},
 			"movies",
 			libOptions,
-			config.AppConfig.Jellyfin.MoviesLibraryID,
-			config.AppConfig.Jellyfin.MoviesLibraryID,
+			moviesId,
+			moviesId,
 			nil,
 			nil,
 		},
@@ -38,8 +41,8 @@ func (h *LibraryHandler) GetVirtualFolders(c *gin.Context) {
 			[]string{config.AppConfig.Library.SeriesPath},
 			"tvshows",
 			libOptions,
-			config.AppConfig.Jellyfin.SeriesLibraryID,
-			config.AppConfig.Jellyfin.SeriesLibraryID,
+			seriesId,
+			seriesId,
 			nil,
 			nil,
 		},
@@ -141,7 +144,7 @@ func (h *LibraryHandler) GetItemDetails(c *gin.Context) {
 	case moviesLibNorm:
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Películas",
-			"Id":             config.AppConfig.Jellyfin.MoviesLibraryID,
+			"Id":             moviesLibNorm,
 			"Type":           "CollectionFolder",
 			"CollectionType": "movies",
 		})
@@ -149,7 +152,7 @@ func (h *LibraryHandler) GetItemDetails(c *gin.Context) {
 	case seriesLibNorm:
 		c.JSON(http.StatusOK, gin.H{
 			"Name":           "Series",
-			"Id":             config.AppConfig.Jellyfin.SeriesLibraryID,
+			"Id":             seriesLibNorm,
 			"Type":           "CollectionFolder",
 			"CollectionType": "tvshows",
 		})

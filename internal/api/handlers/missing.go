@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/models"
@@ -45,9 +46,10 @@ func (h *LibraryHandler) GetItemsFilters(c *gin.Context) {
 
 // GetItemsRoot godoc
 func (h *LibraryHandler) GetItemsRoot(c *gin.Context) {
+	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
 	c.JSON(http.StatusOK, gin.H{
 		"Name":           "Server",
-		"Id":             config.AppConfig.Jellyfin.ServerUUID,
+		"Id":             sId,
 		"IsFolder":       true,
 		"Type":           "AggregateFolder",
 		"CollectionType": "folders",
@@ -56,19 +58,23 @@ func (h *LibraryHandler) GetItemsRoot(c *gin.Context) {
 
 // GetMediaFolders godoc
 func (h *LibraryHandler) GetMediaFolders(c *gin.Context) {
+	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
+	moviesId := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
+	seriesId := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
+
 	c.JSON(http.StatusOK, gin.H{
 		"Items": []gin.H{
 			{
 				"Name":           "Películas",
-				"ServerId":       config.AppConfig.Jellyfin.ServerUUID,
-				"Id":             config.AppConfig.Jellyfin.MoviesLibraryID,
+				"ServerId":       sId,
+				"Id":             moviesId,
 				"Type":           "CollectionFolder",
 				"CollectionType": "movies",
 			},
 			{
 				"Name":           "Series",
-				"ServerId":       config.AppConfig.Jellyfin.ServerUUID,
-				"Id":             config.AppConfig.Jellyfin.SeriesLibraryID,
+				"ServerId":       sId,
+				"Id":             seriesId,
 				"Type":           "CollectionFolder",
 				"CollectionType": "tvshows",
 			},

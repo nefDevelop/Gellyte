@@ -208,11 +208,14 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
+	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
+	uId := strings.ReplaceAll(adminUser.ID, "-", "")
+
 	c.JSON(http.StatusOK, UserDto{
 		Name:                      adminUser.Username,
-		ServerId:                  config.AppConfig.Jellyfin.ServerUUID,
+		ServerId:                  sId,
 		ServerName:                config.AppConfig.Server.Name,
-		Id:                        adminUser.ID,
+		Id:                        uId,
 		HasPassword:               true,
 		HasConfiguredPassword:     true,
 		HasConfiguredEasyPassword: true,
@@ -258,11 +261,13 @@ func (h *AuthHandler) GetUserById(c *gin.Context) {
 
 func (h *AuthHandler) GetUserViews(c *gin.Context) {
 	sId := strings.ReplaceAll(config.AppConfig.Jellyfin.ServerUUID, "-", "")
+	moviesId := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
+	seriesId := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
 	
 	views := []BaseItemDto{
 		{
 			Name:                    "Películas",
-			Id:                      config.AppConfig.Jellyfin.MoviesLibraryID,
+			Id:                      moviesId,
 			ServerId:                sId,
 			Type:                    "CollectionFolder",
 			CollectionType:          "movies",
@@ -273,7 +278,7 @@ func (h *AuthHandler) GetUserViews(c *gin.Context) {
 		},
 		{
 			Name:                    "Series",
-			Id:                      config.AppConfig.Jellyfin.SeriesLibraryID,
+			Id:                      seriesId,
 			ServerId:                sId,
 			Type:                    "CollectionFolder",
 			CollectionType:          "tvshows",
@@ -307,6 +312,9 @@ func (h *AuthHandler) GetDisplayPreferences(c *gin.Context) {
 // --- HELPER FUNCTIONS ---
 
 func getDefaultPolicyDto(isAdmin bool) UserPolicy {
+	moviesId := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
+	seriesId := strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
+
 	return UserPolicy{
 		IsAdministrator:                  isAdmin,
 		IsHidden:                         false,
@@ -341,8 +349,8 @@ func getDefaultPolicyDto(isAdmin bool) UserPolicy {
 		EnabledChannels:                  []string{},
 		EnableAllChannels:                false,
 		EnabledFolders: []string{
-			config.AppConfig.Jellyfin.MoviesLibraryID,
-			config.AppConfig.Jellyfin.SeriesLibraryID,
+			moviesId,
+			seriesId,
 		},
 		EnableAllFolders:           true,
 		InvalidLoginAttemptCount:   0,

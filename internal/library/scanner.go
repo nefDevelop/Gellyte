@@ -195,7 +195,7 @@ func processFile(path string, libType string) {
 
 	// No existe, crear uno nuevo
 	itemType := "Movie"
-	parentId := config.AppConfig.Jellyfin.MoviesLibraryID
+	parentId := strings.ReplaceAll(config.AppConfig.Jellyfin.MoviesLibraryID, "-", "")
 
 	if libType == "series" {
 		itemType = "Episode"
@@ -206,7 +206,7 @@ func processFile(path string, libType string) {
 			parentId = parent.ID
 		} else {
 			// Si no hay carpeta padre en DB, usamos la biblioteca de Series por defecto
-			parentId = config.AppConfig.Jellyfin.SeriesLibraryID
+			parentId = strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
 		}
 	}
 
@@ -275,7 +275,7 @@ func processDirectory(path string, libType string, libRoot string) {
 		parentPath := filepath.Dir(path)
 		if parentPath == libRoot || parentPath == "." {
 			itemType = "Series"
-			parentId = config.AppConfig.Jellyfin.SeriesLibraryID
+			parentId = strings.ReplaceAll(config.AppConfig.Jellyfin.SeriesLibraryID, "-", "")
 		} else {
 			itemType = "Season"
 			// Buscar la Serie padre
