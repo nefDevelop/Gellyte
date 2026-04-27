@@ -20,23 +20,41 @@ func MapMediaItemToDto(item models.MediaItem, userData *models.UserItemData, ser
 			PlayCount:             userData.PlayCount,
 			IsFavorite:            userData.IsFavorite,
 			Played:                userData.Played,
-			LastPlayedDate:        userData.LastPlayedDate.Format(time.RFC3339),
+			LastPlayedDate:        userData.LastPlayedDate.Format("2006-01-02T15:04:05.0000000Z"),
 		}
 	}
 
+	// Formato de fecha estándar de Jellyfin
+	now := time.Now().UTC().Format("2006-01-02T15:04:05.0000000Z")
+
 	dto := BaseItemDto{
-		Name:         item.Name,
-		Id:           item.ID,
-		ServerId:     serverID,
-		Type:         item.Type,
-		RunTimeTicks: item.RunTimeTicks,
-		IsFolder:     item.Type == "Series" || item.Type == "Season" || item.Type == "Folder" || item.Type == "CollectionFolder",
+		Name:                    item.Name,
+		SortName:                item.Name,
+		Id:                      item.ID,
+		Etag:                    item.ID, // Usamos el ID como Etag básico
+		ServerId:                serverID,
+		Type:                    item.Type,
+		MediaType:               "Video",
+		RunTimeTicks:            item.RunTimeTicks,
+		IsFolder:                item.Type == "Series" || item.Type == "Season" || item.Type == "Folder" || item.Type == "CollectionFolder",
+		DateCreated:             now,
+		DateLastMediaAdded:      now,
+		CanDelete:               false,
+		PlayAccess:              "Full",
+		PrimaryImageAspectRatio: 0.66,
 		ImageTags: map[string]string{
 			"Primary": "tag",
 		},
-		UserData: userDataDto,
-		Width:    item.Width,
-		Height:   item.Height,
+		UserData:        userDataDto,
+		Width:           item.Width,
+		Height:          item.Height,
+		ExternalUrls:    []interface{}{},
+		MediaSources:    []interface{}{},
+		ImageBlurHashes: map[string]interface{}{},
+	}
+
+	if item.Type == "Series" {
+		dto.MediaType = "" // Series no tienen MediaType en Jellyfin
 	}
 
 	if item.ProductionYear > 0 {

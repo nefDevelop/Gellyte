@@ -271,29 +271,42 @@ func (h *AuthHandler) GetUserViews(c *gin.Context) {
 	sId := config.AppConfig.Jellyfin.ServerUUID
 	moviesId := config.AppConfig.Jellyfin.MoviesLibraryID
 	seriesId := config.AppConfig.Jellyfin.SeriesLibraryID
+	now := time.Now().UTC().Format("2006-01-02T15:04:05.0000000Z")
 
 	views := []BaseItemDto{
 		{
 			Name:                    "Películas",
+			SortName:                "Películas",
 			Id:                      moviesId,
+			Etag:                    moviesId,
 			ServerId:                sId,
 			Type:                    "CollectionFolder",
 			CollectionType:          "movies",
 			IsFolder:                true,
 			PlayAccess:              "Full",
 			PrimaryImageAspectRatio: 0.66,
+			DateCreated:             now,
 			ImageTags:               map[string]string{},
+			ExternalUrls:            []interface{}{},
+			MediaSources:            []interface{}{},
+			ImageBlurHashes:         map[string]interface{}{},
 		},
 		{
 			Name:                    "Series",
+			SortName:                "Series",
 			Id:                      seriesId,
+			Etag:                    seriesId,
 			ServerId:                sId,
 			Type:                    "CollectionFolder",
 			CollectionType:          "tvshows",
 			IsFolder:                true,
 			PlayAccess:              "Full",
 			PrimaryImageAspectRatio: 0.66,
+			DateCreated:             now,
 			ImageTags:               map[string]string{},
+			ExternalUrls:            []interface{}{},
+			MediaSources:            []interface{}{},
+			ImageBlurHashes:         map[string]interface{}{},
 		},
 	}
 

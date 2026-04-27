@@ -240,24 +240,30 @@ type DeviceProfile struct {
 
 type BaseItemDto struct {
 	Name                    string                 `json:"Name"`
+	OriginalTitle           string                 `json:"OriginalTitle,omitempty"`
 	Id                      string                 `json:"Id"`
+	Etag                    string                 `json:"Etag,omitempty"`
 	ServerId                string                 `json:"ServerId"`
 	Type                    string                 `json:"Type"`
-	MediaType               string                 `json:"MediaType"`
+	MediaType               string                 `json:"MediaType,omitempty"`
 	IsFolder                bool                   `json:"IsFolder"`
 	CanDelete               bool                   `json:"CanDelete"`
 	PlayAccess              string                 `json:"PlayAccess"`
 	PrimaryImageAspectRatio float64                `json:"PrimaryImageAspectRatio"`
 	ImageTags               map[string]string      `json:"ImageTags"`
 	UserData                UserItemDataDto        `json:"UserData"`
-	CollectionType          string                 `json:"CollectionType"`
-	Path                    string                 `json:"Path"`
-	ParentId                string                 `json:"ParentId"`
+	CollectionType          string                 `json:"CollectionType,omitempty"`
+	SortName                string                 `json:"SortName,omitempty"`
+	ForcedSortName          string                 `json:"ForcedSortName,omitempty"`
+	DateCreated             string                 `json:"DateCreated,omitempty"`
+	DateLastMediaAdded      string                 `json:"DateLastMediaAdded,omitempty"`
+	Path                    string                 `json:"Path,omitempty"`
+	ParentId                string                 `json:"ParentId,omitempty"`
 	Width                   int                    `json:"Width,omitempty"`
 	Height                  int                    `json:"Height,omitempty"`
-	Overview                string                 `json:"Overview"`
-	RunTimeTicks            int64                  `json:"RunTimeTicks"`
-	ProductionYear          int                    `json:"ProductionYear"`
+	Overview                string                 `json:"Overview,omitempty"`
+	RunTimeTicks            int64                  `json:"RunTimeTicks,omitempty"`
+	ProductionYear          int                    `json:"ProductionYear,omitempty"`
 	IndexNumber             int                    `json:"IndexNumber,omitempty"`
 	ParentIndexNumber       int                    `json:"ParentIndexNumber,omitempty"`
 	SeriesName              string                 `json:"SeriesName,omitempty"`
