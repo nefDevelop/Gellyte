@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -177,6 +178,23 @@ func (h *LibraryHandler) GetItemDetails(c *gin.Context) {
 
 func (h *LibraryHandler) GetItemImage(c *gin.Context) {
 	id := c.Param("id")
+
+	// Si es una carpeta virtual (biblioteca raíz), devolvemos un placeholder temático
+	moviesLib := config.AppConfig.Jellyfin.MoviesLibraryID
+	seriesLib := config.AppConfig.Jellyfin.SeriesLibraryID
+
+	if id == moviesLib || id == seriesLib {
+		color := "#00a5ff" // Azul Jellyfin
+		text := "CINE"
+		if id == seriesLib {
+			text = "TV"
+		}
+		placeholder := fmt.Sprintf(`<svg width="200" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="300" fill="%s"/><text x="50%" y="50%" font-family="Arial" font-size="40" font-weight="bold" fill="white" text-anchor="middle" dy=".3em">%s</text></svg>`, color, text)
+		c.Header("Content-Type", "image/svg+xml")
+		c.String(http.StatusOK, placeholder)
+		return
+	}
+
 	item, err := h.LibraryService.GetItem(id)
 	if err != nil {
 		c.Status(http.StatusNotFound)
@@ -308,6 +326,7 @@ func (h *LibraryHandler) GetLatestItems(c *gin.Context) {
 		respItems = append(respItems, h.mapItem(item, userId))
 	}
 
+	// Devolvemos tanto el array plano como el objeto envuelto para máxima compatibilidad
 	c.JSON(http.StatusOK, respItems)
 }
 

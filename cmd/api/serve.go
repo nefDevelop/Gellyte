@@ -159,6 +159,10 @@ func runServe() {
 	r.GET("/users/:id/views", h.Auth.GetUserViews)
 	r.GET("/Users/:id/Items", h.Library.GetItems)
 	r.GET("/users/:id/items", h.Library.GetItems)
+	r.GET("/Users/:id/Items/Resume", h.Library.GetResumeItems)
+	r.GET("/users/:id/items/resume", h.Library.GetResumeItems)
+	r.GET("/Users/:id/Items/Latest", h.Library.GetLatestItems)
+	r.GET("/users/:id/items/latest", h.Library.GetLatestItems)
 	r.GET("/DisplayPreferences/:id", h.Auth.GetDisplayPreferences)
 	r.GET("/displaypreferences/:id", h.Auth.GetDisplayPreferences)
 
