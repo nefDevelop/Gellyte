@@ -12,7 +12,7 @@ import (
 // Constantes para evitar valores mágicos y facilitar la configuración.
 const (
 	ServerVersion   = "10.11.8"
-	ProductName     = "Jellyfin Server"
+	ProductName     = "Jellyfin"
 	OperatingSystem = "Linux"
 )
 
@@ -44,7 +44,7 @@ func (h *SystemHandler) GetSystemInfo(c *gin.Context) {
 		Id:                         sId,
 		StartupWizardCompleted:     true,
 		OperatingSystemDisplayName: "Linux",
-		PackageName:                "Gellyte",
+		PackageName:                "Jellyfin",
 		HasPendingRestart:          false,
 		IsShuttingDown:             false,
 		SupportsLibraryMonitor:     true,
@@ -95,7 +95,17 @@ func (h *SystemHandler) GetQuickConnectEnabled(c *gin.Context) {
 // InitiateQuickConnect godoc
 func (h *SystemHandler) InitiateQuickConnect(c *gin.Context) {
 	// Según el esquema OpenAPI de Jellyfin, 401 indica que QuickConnect no está activo.
-	c.Status(http.StatusUnauthorized)
+	// Algunos clientes esperan una estructura de objeto base incluso con 401.
+	c.JSON(http.StatusUnauthorized, QuickConnectResult{
+		Authenticated: false,
+		Secret:        "",
+		Code:          "",
+		DeviceId:      "",
+		DeviceName:    "",
+		AppName:       "",
+		AppVersion:    "",
+		DateAdded:     "2001-01-01T00:00:00Z",
+	})
 }
 
 // GetBrandingConfiguration godoc
