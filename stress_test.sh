@@ -44,12 +44,16 @@ if [ "$COUNT" -eq 0 ]; then
 fi
 echo "Encontrados $COUNT ítems para el test."
 
-echo "-> Clasificando hasta 30 ítems aleatorios para buscar diversidad de resoluciones..."
-# Mezclamos (shuf/sort -R) todos los IDs de la biblioteca para garantizar diversidad
-SAMPLE_IDS=$(echo "$ALL_IDS" | sort -R | head -n 30)
-LOW_RES_IDS=""
-MED_RES_IDS=""
-HIGH_RES_IDS=""
+echo "-> Escaneando inteligentemente TODO el catálogo para garantizar testeo en 4K, 1080p y SD..."
+# Extraemos al instante el ID y el Ancho (Width) de cada video desde la respuesta JSON gigante
+ITEM_STATS=$(echo "$RAW_RESP" | sed 's/},{/}\n{/g' | grep '"Width":' | sed -E 's/.*"Id":"([^"]+)".*"Width":([0-9]+).*/\1 \2/')
+
+# Clasificamos usando el Width (Ancho) ya que el Height varía en películas formato cine/ultrawide
+HIGH_RES_IDS=$(echo "$ITEM_STATS" | awk '$2 >= 2560 {print $1}' | sort -R | head -n 3 | tr '\n' ' ')
+MED_RES_IDS=$(echo "$ITEM_STATS" | awk '$2 >= 1900 && $2 < 2560 {print $1}' | sort -R | head -n 3 | tr '\n' ' ')
+LOW_RES_IDS=$(echo "$ITEM_STATS" | awk '$2 < 1900 && $2 > 0 {print $1}' | sort -R | head -n 3 | tr '\n' ' ')
+
+SAMPLE_IDS=$(echo "$HIGH_RES_IDS $MED_RES_IDS $LOW_RES_IDS" | tr ' ' '\n' | grep -v '^$')
 
 printf "   %-15s | %-30s | %-10s | %-10s | %-10s\n" "RESOLUCIÓN" "NOMBRE" "CONTENEDOR" "VIDEO" "AUDIO"
 echo "   ----------------|--------------------------------|------------|------------|------------"
@@ -60,20 +64,17 @@ for id in $SAMPLE_IDS; do
     VCODEC=$(echo "$INFO" | grep -o '"Codec":"[^"]*"' | head -1 | cut -d'"' -f4)
     ACODEC=$(echo "$INFO" | grep -o '"Codec":"[^"]*"' | sed -n '2p' | cut -d'"' -f4)
     NAME=$(echo "$INFO" | grep -o '"Name":"[^"]*"' | head -1 | cut -d'"' -f4)
-    HEIGHT=$(echo "$INFO" | grep -o '"Height": *[0-9]*' | head -1 | sed 's/"Height": *//')
+    WIDTH=$(echo "$INFO" | grep -o '"Width": *[0-9]*' | head -1 | sed 's/"Width": *//')
 
-    if [ -z "$HEIGHT" ]; then continue; fi
+    if [ -z "$WIDTH" ]; then continue; fi
 
     RES_LABEL=""
-    if [ "$HEIGHT" -le 720 ]; then
-        LOW_RES_IDS="$LOW_RES_IDS $id"
-        RES_LABEL="Baja (<=720p)"
-    elif [ "$HEIGHT" -le 1080 ]; then
-        MED_RES_IDS="$MED_RES_IDS $id"
+    if [ "$WIDTH" -ge 2560 ]; then
+        RES_LABEL="Alta (4K+)"
+    elif [ "$WIDTH" -ge 1900 ]; then
         RES_LABEL="Media (1080p)"
     else
-        HIGH_RES_IDS="$HIGH_RES_IDS $id"
-        RES_LABEL="Alta (4K+)"
+        RES_LABEL="Baja (<=720p)"
     fi
 
     # Truncar el nombre a 30 caracteres para no romper la tabla
