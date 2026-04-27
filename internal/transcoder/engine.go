@@ -24,6 +24,7 @@ type TranscodeOptions struct {
 func BuildTranscodeCmd(item models.MediaItem, opts TranscodeOptions) *exec.Cmd {
 	args := []string{
 		"-v", "error",
+		"-threads", "2", // Limita el número de hilos de CPU para reducir drásticamente el consumo de RAM
 	}
 
 	// Optimizaciones de hardware
@@ -97,6 +98,7 @@ func BuildHLSSegmentCmd(item models.MediaItem, segmentIndex int, segmentDuration
 
 	args := []string{
 		"-v", "error",
+		"-threads", "2", // Limita el número de hilos de CPU para reducir drásticamente el consumo de RAM
 	}
 
 	// Optimizaciones de hardware para HLS
