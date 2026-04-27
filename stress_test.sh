@@ -6,8 +6,10 @@ CONCURRENCY=${CONCURRENCY:-20}
 TIMEOUT_SEC=${TIMEOUT_SEC:-15}
 
 get_mem() {
-    echo -n "RAM en uso (HeapAlloc): "
+    echo -n "RAM App (HeapAlloc): "
     curl -s "$SERVER_URL/debug/pprof/heap?debug=1" | grep "# HeapAlloc =" | awk '{print $4/1024/1024 " MB"}'
+    echo -n "RAM OS  (Usada/Total): "
+    free -h | awk '/^Mem:/ {print $3 " / " $2}'
 }
 
 get_goroutines() {
@@ -37,21 +39,40 @@ if [ "$COUNT" -eq 0 ]; then
 fi
 echo "Encontrados $COUNT ítems para el test."
 
-echo "-> Analizando formatos de los primeros 3 ítems (los que se usarán para Transcodificación):"
-TEST_IDS=$(echo "$ALL_IDS" | head -n 3)
-for id in $TEST_IDS; do
+echo "-> Clasificando hasta 20 ítems para las tandas de prueba..."
+SAMPLE_IDS=$(echo "$ALL_IDS" | head -n 20)
+LOW_RES_IDS=""
+MED_RES_IDS=""
+HIGH_RES_IDS=""
+
+printf "   %-15s | %-30s | %-10s | %-10s | %-10s\n" "RESOLUCIÓN" "NOMBRE" "CONTENEDOR" "VIDEO" "AUDIO"
+echo "   ----------------|--------------------------------|------------|------------|------------"
+
+for id in $SAMPLE_IDS; do
     INFO=$(curl -s "$SERVER_URL/Items/$id/PlaybackInfo")
     CONTAINER=$(echo "$INFO" | grep -o '"Container":"[^"]*"' | head -1 | cut -d'"' -f4)
-    # Extraer el primer y segundo codec (normalmente Video y Audio)
     VCODEC=$(echo "$INFO" | grep -o '"Codec":"[^"]*"' | head -1 | cut -d'"' -f4)
     ACODEC=$(echo "$INFO" | grep -o '"Codec":"[^"]*"' | sed -n '2p' | cut -d'"' -f4)
     NAME=$(echo "$INFO" | grep -o '"Name":"[^"]*"' | head -1 | cut -d'"' -f4)
-    
-    if [ -z "$VCODEC" ]; then
-        echo "   - ID: $id | (Sin metadatos técnicos extraídos aún)"
+    HEIGHT=$(echo "$INFO" | grep -o '"Height": *[0-9]*' | head -1 | sed 's/"Height": *//')
+
+    if [ -z "$HEIGHT" ]; then continue; fi
+
+    RES_LABEL=""
+    if [ "$HEIGHT" -le 720 ]; then
+        LOW_RES_IDS="$LOW_RES_IDS $id"
+        RES_LABEL="Baja (<=720p)"
+    elif [ "$HEIGHT" -le 1080 ]; then
+        MED_RES_IDS="$MED_RES_IDS $id"
+        RES_LABEL="Media (1080p)"
     else
-        echo "   - $NAME | Contenedor: $CONTAINER | Video: $VCODEC | Audio: $ACODEC"
+        HIGH_RES_IDS="$HIGH_RES_IDS $id"
+        RES_LABEL="Alta (4K+)"
     fi
+
+    # Truncar el nombre a 30 caracteres para no romper la tabla
+    SHORT_NAME=$(echo "$NAME" | cut -c 1-30)
+    printf "   %-15s | %-30s | %-10s | %-10s | %-10s\n" "$RES_LABEL" "$SHORT_NAME" "$CONTAINER" "$VCODEC" "$ACODEC"
 done
 
 echo "Fase 2: Carga masiva de Metadatos ($CONCURRENCY peticiones en paralelo)..."
@@ -69,31 +90,30 @@ get_mem
 get_goroutines
 echo "-----------------------------------"
 
-echo "Fase 4: Test de Transcodificación Escalonada (FFmpeg) en paralelo..."
+echo "Fase 4: Test de Transcodificación Escalonada por Formatos (FFmpeg)..."
 
-echo "-> Fase 4.1: Baja Calidad (Móvil / 3G) - 1Mbps, Video: h264, Audio: aac..."
-# Simulamos clientes solicitando transcodificación agresiva a muy bajo bitrate
-echo "$TEST_IDS" | xargs -I{} -P 3 timeout "$TIMEOUT_SEC" curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?maxBitrate=1000000&VideoCodec=h264&AudioCodec=aac"
-echo "Estado tras Fase 4.1:"
-get_mem
-get_goroutines
-echo "-----------------------------------"
+run_batch() {
+    local label=$1
+    local ids=$2
+    local params=$3
 
-echo "-> Fase 4.2: Calidad Media (Web / WiFi) - 5Mbps, Video: h264, Audio: aac..."
-# Simulamos clientes estándar solicitando calidad intermedia
-echo "$TEST_IDS" | xargs -I{} -P 3 timeout "$TIMEOUT_SEC" curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?maxBitrate=5000000&VideoCodec=h264&AudioCodec=aac"
-echo "Estado tras Fase 4.2:"
-get_mem
-get_goroutines
-echo "-----------------------------------"
+    if [ -z "$(echo "$ids" | tr -d ' ')" ]; then
+        echo "-> Omitiendo tanda: $label (No se encontraron ítems en esta categoría)"
+        return
+    fi
+    
+    echo "-> Tanda $label..."
+    # Extraemos hasta 3 items de esa categoría y disparamos FFmpeg
+    echo "$ids" | tr ' ' '\n' | grep -v '^$' | head -n 3 | xargs -I{} -P 3 timeout "$TIMEOUT_SEC" curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?$params"
+    echo "Estado tras $label:"
+    get_mem
+    get_goroutines
+    echo "-----------------------------------"
+}
 
-echo "-> Fase 4.3: Máxima Calidad / Remux (TV / Red Local) - Video original, Audio transcodificado..."
-# Simulamos un Smart TV que soporta el video original pero necesita que el audio pase a AAC
-echo "$TEST_IDS" | xargs -I{} -P 3 timeout "$TIMEOUT_SEC" curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?VideoCodec=copy&AudioCodec=aac"
-echo "Estado tras Fase 4.3:"
-get_mem
-get_goroutines
-echo "-----------------------------------"
+run_batch "4.1: Archivos de Baja Res -> Forzando a 1Mbps (Transcode duro a h264/aac)" "$LOW_RES_IDS" "maxBitrate=1000000&VideoCodec=h264&AudioCodec=aac"
+run_batch "4.2: Archivos de Media Res -> Forzando a 5Mbps (Transcode estándar h264/aac)" "$MED_RES_IDS" "maxBitrate=5000000&VideoCodec=h264&AudioCodec=aac"
+run_batch "4.3: Archivos de Alta Res -> Calidad Original (Remux Video Original / Transcode Audio)" "$HIGH_RES_IDS" "VideoCodec=copy&AudioCodec=aac"
 
 echo "Fase 5: Esperando liberación de memoria (65 segundos)..."
 sleep 65
