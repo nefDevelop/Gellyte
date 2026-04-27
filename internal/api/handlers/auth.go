@@ -117,7 +117,7 @@ func (h *AuthHandler) AuthenticateByName(c *gin.Context) {
 			HasPassword:               true,
 			HasConfiguredPassword:     true,
 			HasConfiguredEasyPassword: true,
-			EnableAutoLogin:           false,
+			EnableAutoLogin:           true,
 			LastLoginDate:             now,
 			LastActivityDate:          now,
 			Configuration: UserConfiguration{
@@ -357,6 +357,9 @@ func getDefaultPolicyDto(isAdmin bool) UserPolicy {
 		LoginAttemptsBeforeLockout: 0,
 		MaxActiveSessions:          0,
 		EnablePublicSharing:        true,
+		EnableSubtitleDownloading:  true,
+		EnablePlaybackStreaming:    true,
+		EnableSharedDevice:         true,
 		BlockedMediaFolders:        []string{},
 		BlockedChannels:            []string{},
 		RemoteClientBitrateLimit:   0,
