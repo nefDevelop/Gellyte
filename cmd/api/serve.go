@@ -157,6 +157,8 @@ func runServe() {
 
 	r.GET("/Users/:id/Views", h.Auth.GetUserViews)
 	r.GET("/users/:id/views", h.Auth.GetUserViews)
+	r.GET("/Users/:id/Items", h.Library.GetItems)
+	r.GET("/users/:id/items", h.Library.GetItems)
 	r.GET("/DisplayPreferences/:id", h.Auth.GetDisplayPreferences)
 	r.GET("/displaypreferences/:id", h.Auth.GetDisplayPreferences)
 

@@ -60,6 +60,14 @@ func (h *LibraryHandler) GetItems(c *gin.Context) {
 		limit, _ = strconv.Atoi(c.Query("limit"))
 	}
 
+	userId := c.Param("id")
+	if userId == "" {
+		userId = c.GetString("UserID")
+	}
+	if userId == "" {
+		userId = config.AppConfig.Jellyfin.AdminUUID
+	}
+
 	parentId := c.Query("ParentId")
 	if parentId == "" {
 		parentId = c.Query("parentId")
@@ -113,11 +121,6 @@ func (h *LibraryHandler) GetItems(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
-	}
-
-	userId := c.GetString("UserID")
-	if userId == "" {
-		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
 	respItems := make([]BaseItemDto, 0, len(dbItems))
