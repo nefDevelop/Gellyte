@@ -50,10 +50,28 @@ get_mem
 get_goroutines
 echo "-----------------------------------"
 
-echo "Fase 4: Test de Transcodificación (FFmpeg) en paralelo (10 segundos)..."
-# Solo lanzamos para los primeros 3 para no saturar el CPU del servidor
-echo "$ALL_IDS" | head -n 3 | xargs -I{} -P 3 timeout 10 curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream"
-echo "Estado tras Fase 4 (Transcode detenido):"
+echo "Fase 4: Test de Transcodificación Escalonada (FFmpeg) en paralelo..."
+
+echo "-> Fase 4.1: Baja Calidad (Móvil / 3G) - 1Mbps, Video: h264, Audio: aac..."
+# Simulamos clientes solicitando transcodificación agresiva a muy bajo bitrate
+echo "$ALL_IDS" | head -n 3 | xargs -I{} -P 3 timeout 10 curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?maxBitrate=1000000&VideoCodec=h264&AudioCodec=aac"
+echo "Estado tras Fase 4.1:"
+get_mem
+get_goroutines
+echo "-----------------------------------"
+
+echo "-> Fase 4.2: Calidad Media (Web / WiFi) - 5Mbps, Video: h264, Audio: aac..."
+# Simulamos clientes estándar solicitando calidad intermedia
+echo "$ALL_IDS" | head -n 3 | xargs -I{} -P 3 timeout 10 curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?maxBitrate=5000000&VideoCodec=h264&AudioCodec=aac"
+echo "Estado tras Fase 4.2:"
+get_mem
+get_goroutines
+echo "-----------------------------------"
+
+echo "-> Fase 4.3: Máxima Calidad / Remux (TV / Red Local) - Video original, Audio transcodificado..."
+# Simulamos un Smart TV que soporta el video original pero necesita que el audio pase a AAC
+echo "$ALL_IDS" | head -n 3 | xargs -I{} -P 3 timeout 10 curl -s -o /dev/null "$SERVER_URL/Videos/{}/stream?VideoCodec=copy&AudioCodec=aac"
+echo "Estado tras Fase 4.3:"
 get_mem
 get_goroutines
 echo "-----------------------------------"
