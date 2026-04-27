@@ -40,7 +40,7 @@ func (h *SystemHandler) GetSystemInfo(c *gin.Context) {
 		OperatingSystem:            OperatingSystem,
 		Id:                         config.AppConfig.Jellyfin.ServerUUID,
 		StartupWizardCompleted:     true,
-		OperatingSystemDisplayName:  "Linux",
+		OperatingSystemDisplayName: "Linux",
 		PackageName:                "Gellyte",
 		HasPendingRestart:          false,
 		IsShuttingDown:             false,
@@ -68,12 +68,12 @@ func (h *SystemHandler) PostCapabilities(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// dummyBitrateData reserva 500KB estáticos de memoria que se reutilizan para todas las pruebas de velocidad.
+var dummyBitrateData = make([]byte, 500000)
+
 // GetBitrateTest devuelve datos aleatorios para que la app mida la velocidad.
 func (h *SystemHandler) GetBitrateTest(c *gin.Context) {
-	// 500kb de datos para la prueba de velocidad.
-	const size = 500000
-	data := make([]byte, size)
-	c.Data(http.StatusOK, "application/octet-stream", data)
+	c.Data(http.StatusOK, "application/octet-stream", dummyBitrateData)
 }
 
 // GetEndpointInfo devuelve la URL base del servidor.

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/services"
 	"github.com/gin-gonic/gin"
@@ -116,7 +117,7 @@ func (h *LibraryHandler) GetItems(c *gin.Context) {
 		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
-	respItems := []BaseItemDto{}
+	respItems := make([]BaseItemDto, 0, len(dbItems))
 	for _, item := range dbItems {
 		respItems = append(respItems, h.mapItem(item, userId))
 	}
@@ -205,7 +206,6 @@ func (h *LibraryHandler) GetItemImage(c *gin.Context) {
 	c.String(http.StatusOK, placeholder)
 }
 
-
 func (h *LibraryHandler) GetNextUp(c *gin.Context) {
 	userId := c.GetString("UserID")
 	if userId == "" {
@@ -219,7 +219,7 @@ func (h *LibraryHandler) GetNextUp(c *gin.Context) {
 		return
 	}
 
-	respItems := []BaseItemDto{}
+	respItems := make([]BaseItemDto, 0, len(items))
 	for _, item := range items {
 		respItems = append(respItems, h.mapItem(item, userId))
 	}
@@ -243,7 +243,7 @@ func (h *LibraryHandler) GetResumeItems(c *gin.Context) {
 		return
 	}
 
-	respItems := []BaseItemDto{}
+	respItems := make([]BaseItemDto, 0, len(items))
 	for _, item := range items {
 		respItems = append(respItems, h.mapItem(item, userId))
 	}
@@ -267,7 +267,7 @@ func (h *LibraryHandler) GetSuggestions(c *gin.Context) {
 		return
 	}
 
-	respItems := []BaseItemDto{}
+	respItems := make([]BaseItemDto, 0, len(items))
 	for _, item := range items {
 		respItems = append(respItems, h.mapItem(item, userId))
 	}
@@ -298,7 +298,7 @@ func (h *LibraryHandler) GetLatestItems(c *gin.Context) {
 		return
 	}
 
-	respItems := []BaseItemDto{}
+	respItems := make([]BaseItemDto, 0, len(items))
 	for _, item := range items {
 		respItems = append(respItems, h.mapItem(item, userId))
 	}
@@ -321,5 +321,3 @@ func (h *LibraryHandler) GetSimilarItems(c *gin.Context) {
 func (h *LibraryHandler) GetMediaSegments(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"Items": []interface{}{}, "TotalRecordCount": 0})
 }
-
-

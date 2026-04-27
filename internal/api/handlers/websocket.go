@@ -10,6 +10,8 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
 		return true // Permitir todos los orígenes para entornos locales
 	},
@@ -73,7 +75,7 @@ func (h *WebSocketHandler) GetDummySocket(c *gin.Context) {
 		return
 	}
 
-	client := &Client{Conn: conn, Send: make(chan []byte, 256)}
+	client := &Client{Conn: conn, Send: make(chan []byte, 32)}
 	GlobalHub.Register <- client
 
 	// Lector: Para manejar el cierre de la conexión

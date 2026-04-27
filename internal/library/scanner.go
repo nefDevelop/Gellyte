@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"sync"
+
 	"github.com/fsnotify/fsnotify"
 	"github.com/gellyte/gellyte/internal/config"
 	"github.com/gellyte/gellyte/internal/database"
@@ -69,8 +70,8 @@ func WatchFolder(path string, libType string) {
 	}()
 
 	// Añadir la carpeta principal y todas sus subcarpetas existentes al monitor
-	filepath.Walk(path, func(walkPath string, info os.FileInfo, err error) error {
-		if err == nil && info.IsDir() {
+	filepath.WalkDir(path, func(walkPath string, d os.DirEntry, err error) error {
+		if err == nil && d.IsDir() {
 			watcher.Add(walkPath)
 		}
 		return nil
@@ -90,13 +91,33 @@ func ScanManual(path string, libType string) {
 	scanInitial(path, libType, path)
 }
 
-
-
 var (
-	// sem controla la concurrencia máxima de escaneo (4 tareas a la vez)
-	sem      = make(chan struct{}, 4)
-	workerWg sync.WaitGroup
+	workerWg  sync.WaitGroup
+	taskQueue = make(chan scanTask, 500)
 )
+
+type scanTask struct {
+	path    string
+	libType string
+	libRoot string
+	isDir   bool
+}
+
+func init() {
+	// Iniciar 4 workers fijos. Esto ahorra miles de goroutines en memoria durante el escaneo inicial.
+	for i := 0; i < 4; i++ {
+		go func() {
+			for task := range taskQueue {
+				if task.isDir {
+					processDirectory(task.path, task.libType, task.libRoot)
+				} else {
+					processFile(task.path, task.libType)
+				}
+				workerWg.Done()
+			}
+		}()
+	}
+}
 
 // StopScanner espera a que terminen las tareas en curso.
 func StopScanner() {
@@ -106,19 +127,12 @@ func StopScanner() {
 
 func enqueueTask(path string, libType string, libRoot string, isDir bool) {
 	workerWg.Add(1)
-	go func() {
-		defer workerWg.Done()
-
-		// Adquirir slot en el semáforo
-		sem <- struct{}{}
-		defer func() { <-sem }()
-
-		if isDir {
-			processDirectory(path, libType, libRoot)
-		} else {
-			processFile(path, libType)
-		}
-	}()
+	taskQueue <- scanTask{
+		path:    path,
+		libType: libType,
+		libRoot: libRoot,
+		isDir:   isDir,
+	}
 }
 
 // scanInitial recorre la carpeta una vez al inicio utilizando WalkDir (más rápido).
@@ -131,7 +145,7 @@ func scanInitial(root string, libType string, libRoot string) {
 		}
 		// Log temporal para depuración
 		// log.Printf("[Scanner] Visitando: %s (Es carpeta: %v)", path, d.IsDir())
-		
+
 		enqueueTask(path, libType, libRoot, d.IsDir())
 		return nil
 	})
@@ -175,63 +189,63 @@ func processFile(path string, libType string) {
 
 	// No existe, crear uno nuevo
 	itemType := "Movie"
-		parentId := config.AppConfig.Jellyfin.MoviesLibraryID
+	parentId := config.AppConfig.Jellyfin.MoviesLibraryID
 
-		if libType == "series" {
-			itemType = "Episode"
-			// Intentar encontrar el ParentId (Season o Series)
-			parentPath := filepath.Dir(path)
-			var parent models.MediaItem
-			if err := database.DB.Where("path = ?", parentPath).First(&parent).Error; err == nil {
-				parentId = parent.ID
-			} else {
-				// Si no hay carpeta padre en DB, usamos la biblioteca de Series por defecto
-				parentId = config.AppConfig.Jellyfin.SeriesLibraryID
-			}
-		}
-
-		newItem := models.MediaItem{
-			Name:      strings.TrimSuffix(name, ext),
-			Path:      path,
-			Type:      itemType,
-			ParentID:  parentId,
-			Container: strings.TrimPrefix(ext, "."),
-		}
-
-		// Extraer metadatos técnicos con ffprobe
-		meta, err := GetVideoMetadata(path)
-		if err == nil {
-			newItem.RunTimeTicks = meta.DurationTicks
-			newItem.Width = meta.Width
-			newItem.Height = meta.Height
-			newItem.Bitrate = meta.Bitrate
-			newItem.VideoCodec = meta.VideoCodec
-			newItem.AudioCodec = meta.AudioCodec
-			newItem.MediaStreams = meta.Streams
+	if libType == "series" {
+		itemType = "Episode"
+		// Intentar encontrar el ParentId (Season o Series)
+		parentPath := filepath.Dir(path)
+		var parent models.MediaItem
+		if err := database.DB.Where("path = ?", parentPath).First(&parent).Error; err == nil {
+			parentId = parent.ID
 		} else {
-			log.Printf("[Scanner] Advertencia: No se extrajeron metadatos de '%s'. ¿Está ffprobe instalado? Error: %v", name, err)
+			// Si no hay carpeta padre en DB, usamos la biblioteca de Series por defecto
+			parentId = config.AppConfig.Jellyfin.SeriesLibraryID
 		}
+	}
 
-		// Buscar metadatos en archivo .nfo
-		nfoPath := strings.TrimSuffix(path, ext) + ".nfo"
-		if nfo, err := ParseMovieNfo(nfoPath); err == nil {
-			newItem.Name = nfo.Title
-			newItem.ProductionYear = nfo.Year
-			newItem.Overview = nfo.Plot
-		}
+	newItem := models.MediaItem{
+		Name:      strings.TrimSuffix(name, ext),
+		Path:      path,
+		Type:      itemType,
+		ParentID:  parentId,
+		Container: strings.TrimPrefix(ext, "."),
+	}
 
-		// Generar miniatura si no existe una imagen local
-		dir := filepath.Dir(path)
-		thumbPath := filepath.Join(dir, "thumb.jpg")
-		if _, err := os.Stat(thumbPath); os.IsNotExist(err) && newItem.Width > 0 {
-			GenerateThumbnail(path, thumbPath)
-		}
+	// Extraer metadatos técnicos con ffprobe
+	meta, err := GetVideoMetadata(path)
+	if err == nil {
+		newItem.RunTimeTicks = meta.DurationTicks
+		newItem.Width = meta.Width
+		newItem.Height = meta.Height
+		newItem.Bitrate = meta.Bitrate
+		newItem.VideoCodec = meta.VideoCodec
+		newItem.AudioCodec = meta.AudioCodec
+		newItem.MediaStreams = meta.Streams
+	} else {
+		log.Printf("[Scanner] Advertencia: No se extrajeron metadatos de '%s'. ¿Está ffprobe instalado? Error: %v", name, err)
+	}
 
-		database.DB.Create(&newItem)
-		log.Printf("[Scanner] + Añadido a biblioteca: %s (%s)", newItem.Name, newItem.Type)
-		if OnLibraryChanged != nil {
-			OnLibraryChanged()
-		}
+	// Buscar metadatos en archivo .nfo
+	nfoPath := strings.TrimSuffix(path, ext) + ".nfo"
+	if nfo, err := ParseMovieNfo(nfoPath); err == nil {
+		newItem.Name = nfo.Title
+		newItem.ProductionYear = nfo.Year
+		newItem.Overview = nfo.Plot
+	}
+
+	// Generar miniatura si no existe una imagen local
+	dir := filepath.Dir(path)
+	thumbPath := filepath.Join(dir, "thumb.jpg")
+	if _, err := os.Stat(thumbPath); os.IsNotExist(err) && newItem.Width > 0 {
+		GenerateThumbnail(path, thumbPath)
+	}
+
+	database.DB.Create(&newItem)
+	log.Printf("[Scanner] + Añadido a biblioteca: %s (%s)", newItem.Name, newItem.Type)
+	if OnLibraryChanged != nil {
+		OnLibraryChanged()
+	}
 }
 
 // processDirectory maneja la creación de carpetas (Series/Seasons)

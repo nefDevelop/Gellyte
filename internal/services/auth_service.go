@@ -1,10 +1,9 @@
 package services
 
 import (
-	"crypto/md5"
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"time"
 
 	"github.com/gellyte/gellyte/internal/models"
 	"github.com/gellyte/gellyte/internal/repository"
@@ -39,9 +38,10 @@ func (s *authService) Authenticate(username, password, deviceID string) (*models
 		}
 	}
 
-	// Generar un token único de sesión (32 chars hex sin guiones)
-	hash := md5.Sum([]byte(time.Now().String() + user.Username + deviceID))
-	token := hex.EncodeToString(hash[:])
+	// Generar un token criptográficamente seguro de 32 caracteres (16 bytes = 32 hex chars)
+	tokenBytes := make([]byte, 16)
+	rand.Read(tokenBytes)
+	token := hex.EncodeToString(tokenBytes)
 
 	return user, token, nil
 }

@@ -46,15 +46,22 @@ func GetRawMetadata(path string) (*FFProbeResult, error) {
 		"-of", "json=c=1",
 		path)
 
-	output, err := cmd.CombinedOutput()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("ffprobe error: %v (output: %s)", err, string(output))
+		return nil, fmt.Errorf("ffprobe error obteniendo pipe: %v", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("ffprobe error al iniciar: %v", err)
 	}
 
 	var result FFProbeResult
-	if err := json.Unmarshal(output, &result); err != nil {
+	if err := json.NewDecoder(stdout).Decode(&result); err != nil {
+		cmd.Wait() // Limpiar proceso zombie en caso de fallo
 		return nil, fmt.Errorf("error parseando JSON de ffprobe: %v", err)
 	}
+
+	cmd.Wait()
 	return &result, nil
 }
 

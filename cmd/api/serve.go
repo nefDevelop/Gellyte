@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
 	"runtime"
 	"runtime/debug"
+	"syscall"
 	"time"
 
 	_ "net/http/pprof"
@@ -42,6 +42,9 @@ func init() {
 func runServe() {
 	// Iniciar Configuración
 	config.InitConfig()
+
+	// Ajuste agresivo de recolección de basura: Reduce el tamaño base de la RAM (intercambia poca CPU por RAM)
+	debug.SetGCPercent(50)
 
 	// Configurar Gin en modo Release para ahorrar memoria y mejorar performance
 	gin.SetMode(gin.ReleaseMode)
@@ -258,13 +261,21 @@ func runServe() {
 		}
 	}()
 
-	// Tarea en segundo plano para liberar memoria tras el arranque inicial
+	// Tarea en segundo plano para liberar memoria periódicamente (Idle RAM optimization)
 	go func() {
 		// Esperar un tiempo prudencial para que termine el escaneo inicial
 		time.Sleep(1 * time.Minute)
 		log.Println("[Memory] Realizando limpieza de memoria post-arranque...")
 		runtime.GC()
 		debug.FreeOSMemory()
+
+		// Limpiezas periódicas para mantener el uso de RAM bajo cuando está en idle
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			runtime.GC()
+			debug.FreeOSMemory()
+		}
 	}()
 
 	// Esperar señal de interrupción

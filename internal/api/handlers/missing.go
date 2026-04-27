@@ -12,7 +12,7 @@ import (
 // GetItemsCounts godoc
 func (h *LibraryHandler) GetItemsCounts(c *gin.Context) {
 	var movieCount, seriesCount, episodeCount int64
-	
+
 	_, movieCount, _ = h.LibraryService.GetItems(services.GetItemsParams{ItemTypes: []string{"Movie"}, Limit: 1})
 	_, seriesCount, _ = h.LibraryService.GetItems(services.GetItemsParams{ItemTypes: []string{"Series"}, Limit: 1})
 	_, episodeCount, _ = h.LibraryService.GetItems(services.GetItemsParams{ItemTypes: []string{"Episode"}, Limit: 1})
@@ -129,7 +129,7 @@ func (h *LibraryHandler) GetShowEpisodes(c *gin.Context) {
 		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
-	respItems := []BaseItemDto{}
+	respItems := make([]BaseItemDto, 0, len(items))
 	for _, item := range items {
 		respItems = append(respItems, h.mapItem(item, userId))
 	}
@@ -151,7 +151,7 @@ func (h *LibraryHandler) GetShowSeasons(c *gin.Context) {
 		userId = config.AppConfig.Jellyfin.AdminUUID
 	}
 
-	respItems := []BaseItemDto{}
+	respItems := make([]BaseItemDto, 0, len(items))
 	for _, item := range items {
 		respItems = append(respItems, h.mapItem(item, userId))
 	}

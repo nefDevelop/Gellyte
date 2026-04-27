@@ -15,13 +15,14 @@ type MovieNfo struct {
 
 // ParseMovieNfo lee y decodifica un archivo .nfo
 func ParseMovieNfo(path string) (*MovieNfo, error) {
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 
 	var nfo MovieNfo
-	if err := xml.Unmarshal(data, &nfo); err != nil {
+	if err := xml.NewDecoder(file).Decode(&nfo); err != nil {
 		return nil, err
 	}
 
